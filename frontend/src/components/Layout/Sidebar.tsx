@@ -1,53 +1,67 @@
-import { useState } from 'react';
-import { Home, FolderOpen, Users, Package, Wrench, DollarSign, BarChart3, LogOut, Menu } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Building2, Users, FolderOpen, Package, Wrench, Receipt, LogOut } from 'lucide-react';
 
 const menuItems = [
-  { icon: Home, label: 'Dashboard', path: '/' },
-  { icon: FolderOpen, label: 'Projects', path: '/projects' },
-  { icon: Users, label: 'Workers', path: '/workers' },
-  { icon: Package, label: 'Materials', path: '/materials' },
-  { icon: Wrench, label: 'Tools', path: '/tools' },
-  { icon: DollarSign, label: 'Expenses', path: '/expenses' },
-  { icon: BarChart3, label: 'Progress', path: '/progress' },
-  { icon: BarChart3, label: 'Reports', path: '/reports' },
+  { path: '/dashboard', label: 'Dashboard', icon: FolderOpen },
+  { path: '/projects', label: 'Projects', icon: FolderOpen },
+  { path: '/workers', label: 'Workers', icon: Users },
+  { path: '/materials', label: 'Materials', icon: Package },
+  { path: '/tools', label: 'Tools', icon: Wrench },
+  { path: '/expenses', label: 'Expenses', icon: Receipt },
 ];
 
-export default function Sidebar() {
-  const [isOpen, setIsOpen] = useState(true);
+const Sidebar = () => {
+  const location = useLocation();
 
   return (
-    <div className={`${isOpen ? 'w-64' : 'w-20'} bg-slate-900 text-white h-screen transition-all duration-300 flex flex-col`}>
-      <div className="p-4 flex items-center justify-between border-b border-slate-700">
+    <div className="w-72 bg-gray-900 h-screen fixed left-0 top-0 border-r border-gray-800 flex flex-col">
+      {/* Logo */}
+      <div className="p-6 border-b border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center">
-            <span className="font-bold text-xl">A</span>
+          <div className="w-10 h-10 bg-yellow-500 rounded-2xl flex items-center justify-center">
+            <Building2 className="w-7 h-7 text-gray-950" />
           </div>
-          {isOpen && <h1 className="text-2xl font-bold tracking-tight">AGAP</h1>}
+          <div>
+            <h1 className="text-2xl font-bold text-white">Agap</h1>
+            <p className="text-yellow-500 text-sm -mt-1">Construction</p>
+          </div>
         </div>
-        <button onClick={() => setIsOpen(!isOpen)} className="p-2 hover:bg-slate-800 rounded-lg">
-          <Menu size={20} />
-        </button>
       </div>
 
-      <nav className="flex-1 p-4">
-        {menuItems.map((item, index) => (
-          <a
-            key={index}
-            href={item.path}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 mb-1 transition-colors"
-          >
-            <item.icon size={20} />
-            {isOpen && <span>{item.label}</span>}
-          </a>
-        ))}
+      {/* Menu */}
+      <nav className="flex-1 p-4 space-y-2">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors font-medium ${
+                isActive 
+                  ? 'bg-yellow-500 text-gray-950' 
+                  : 'text-gray-300 hover:bg-gray-800'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
-      <div className="p-4 border-t border-slate-700">
-        <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-colors">
-          <LogOut size={20} />
-          {isOpen && <span>Logout</span>}
+      {/* Logout */}
+      <div className="p-4 border-t border-gray-800">
+        <button 
+          onClick={() => window.location.href = '/'}
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 text-red-400 hover:bg-red-950/30 rounded-2xl transition-colors font-medium"
+        >
+          <LogOut className="w-5 h-5" />
+          <span>Logout</span>
         </button>
       </div>
     </div>
   );
-}
+};
+
+export default Sidebar;
