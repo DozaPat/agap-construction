@@ -1,35 +1,117 @@
+import { useState, useEffect } from 'react';
 import { Plus, Search, Filter, Edit, Trash2 } from 'lucide-react';
+import api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 
 const Materials = () => {
-  const materials = [
-    {
-      id: 1,
-      name: "Portland Cement",
-      quantity: 450,
-      unit: "bags",
-      unitPrice: 280,
-      project: "Villa de Agap - Phase 1",
-      supplier: "Holcim Philippines"
-    },
-    {
-      id: 2,
-      name: "Deformed Bar 10mm",
-      quantity: 1200,
-      unit: "kg",
-      unitPrice: 85,
-      project: "Commercial Building - Makati",
-      supplier: "SteelAsia"
-    },
-    {
-      id: 3,
-      name: "Fine Sand",
-      quantity: 85,
-      unit: "tons",
-      unitPrice: 1200,
-      project: "Villa de Agap - Phase 1",
-      supplier: "Local Supplier"
+  const { isAdmin } = useAuth();
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modals
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
+
+  // Search & Filter
+  const [searchTerm, setSearchTerm] = useState('');
+  const [projectFilter, setProjectFilter] = useState('all'); // 'all' or project _id
+
+  const [formData, setFormData] = useState({
+    name: '',
+    category: '',
+    quantity: '',
+    unit: '',
+    unitPrice: '',
+    supplier: '',
+    project: '',
+  });
+
+  const fetchData = async () => {
+    try {
+      const [materialsRes, projectsRes] = await Promise.all([
+        api.get('/materials'),
+        api.get('/projects')
+      ]);
+      setMaterials(materialsRes.data);
+      setProjects(projectsRes.data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Filter logic
+  const filteredMaterials = materials.filter(material => {
+    const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesProject = projectFilter === 'all' || 
+      (material.project && material.project._id === projectFilter);
+    return matchesSearch && matchesProject;
+  });
+
+  const openEdit = (material: any) => {
+    setSelectedMaterial(material);
+    setFormData({
+      name: material.name,
+      category: material.category || '',
+      quantity: material.quantity || '',
+      unit: material.unit || '',
+      unitPrice: material.unitPrice || '',
+      supplier: material.supplier || '',
+      project: material.project?._id || '',
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent, isEdit = false) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+
+    try {
+      const payload = {
+        ...formData,
+        quantity: Number(formData.quantity),
+        unitPrice: Number(formData.unitPrice),
+        project: formData.project || undefined,
+      };
+
+      if (isEdit && selectedMaterial) {
+        await api.put(`/materials/${selectedMaterial._id}`, payload);
+        alert('✅ Material updated successfully!');
+        setIsEditOpen(false);
+      } else {
+        await api.post('/materials', payload);
+        alert('✅ Material created successfully!');
+        setIsCreateOpen(false);
+      }
+
+      setFormData({ name: '', category: '', quantity: '', unit: '', unitPrice: '', supplier: '', project: '' });
+      fetchData();
+    } catch (error: any) {
+      alert('❌ ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!isAdmin || !window.confirm('Delete this material?')) return;
+    try {
+      await api.delete(`/materials/${id}`);
+      alert('✅ Material deleted');
+      fetchData();
+    } catch (error) {
+      alert('❌ Delete failed');
+    }
+  };
+
+  if (loading) {
+    return <div className="p-12 text-center text-gray-500">Loading materials...</div>;
+  }
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -40,28 +122,41 @@ const Materials = () => {
           <p className="text-gray-600 mt-1">Track inventory and material usage per project</p>
         </div>
 
-        <button className="flex items-center gap-3 bg-[#F59E0B] hover:bg-orange-600 px-6 py-3.5 rounded-3xl text-white font-semibold transition-colors">
-          <Plus className="w-5 h-5" />
-          Add Material
-        </button>
+        {isAdmin && (
+          <button 
+            onClick={() => setIsCreateOpen(true)}
+            className="flex items-center gap-3 bg-[#F59E0B] hover:bg-orange-600 px-6 py-3.5 rounded-3xl text-white font-semibold transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Material
+          </button>
+        )}
       </div>
 
-
-
-      {/* Search + Filter */}
+      {/* Search + Project Filter */}
       <div className="bg-white rounded-3xl p-2 flex gap-3 mb-8 shadow-sm items-center">
         <div className="flex-1 relative">
           <Search className="absolute left-6 top-4 text-gray-400" />
           <input
             type="text"
             placeholder="Search materials..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-[#F8FAFC] border border-gray-200 rounded-3xl py-4 pl-14 pr-6 focus:outline-none focus:border-[#F59E0B]"
           />
         </div>
-        <button className="px-8 bg-[#1E293B] text-white rounded-3xl flex items-center gap-2 hover:bg-gray-800">
-          <Filter className="w-5 h-5" />
-          Filter
-        </button>
+
+        {/* Project Filter Dropdown */}
+        <select
+          value={projectFilter}
+          onChange={(e) => setProjectFilter(e.target.value)}
+          className="px-8 bg-[#1E293B] text-white rounded-3xl focus:outline-none"
+        >
+          <option value="all">All Projects</option>
+          {projects.map((p: any) => (
+            <option key={p._id} value={p._id}>{p.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Materials Table */}
@@ -79,29 +174,173 @@ const Materials = () => {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {materials.map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-8 py-6 font-medium text-[#1E293B]">{item.name}</td>
-                <td className="px-8 py-6 font-semibold">{item.quantity}</td>
-                <td className="px-8 py-6 text-gray-600">{item.unit}</td>
-                <td className="px-8 py-6 font-medium">₱{item.unitPrice}</td>
-                <td className="px-8 py-6 text-gray-600">{item.project}</td>
-                <td className="px-8 py-6 text-gray-600">{item.supplier}</td>
-                <td className="px-8 py-6 text-right">
-                  <div className="flex items-center justify-end gap-4">
-                    <button className="text-blue-600 hover:text-blue-700">
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button className="text-red-500 hover:text-red-600">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
+            {filteredMaterials.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-8 py-12 text-center text-gray-400">
+                  No materials found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredMaterials.map((item: any) => (
+                <tr key={item._id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-8 py-6 font-medium text-[#1E293B]">{item.name}</td>
+                  <td className="px-8 py-6 font-semibold">{item.quantity}</td>
+                  <td className="px-8 py-6 text-gray-600">{item.unit}</td>
+                  <td className="px-8 py-6 font-medium">₱{item.unitPrice}</td>
+                  <td className="px-8 py-6 text-gray-600">
+                    {item.project?.name || 'Not Assigned'}
+                  </td>
+                  <td className="px-8 py-6 text-gray-600">{item.supplier || '—'}</td>
+                  <td className="px-8 py-6 text-right">
+                    {isAdmin && (
+                      <div className="flex items-center justify-end gap-4">
+                        <button onClick={() => openEdit(item)} className="text-blue-600 hover:text-blue-700">
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        <button onClick={() => handleDelete(item._id)} className="text-red-500 hover:text-red-600">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* ADD / EDIT MODAL - YOUR ORIGINAL STYLE */}
+      {(isCreateOpen || isEditOpen) && isAdmin && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl w-full max-w-2xl mx-4 overflow-hidden">
+            <div className="px-8 pt-8 pb-6 border-b">
+              <h2 className="text-3xl font-bold text-[#1E293B]">
+                {isEditOpen ? 'Edit Material' : 'Add New Material'}
+              </h2>
+            </div>
+
+            <form onSubmit={(e) => handleSubmit(e, isEditOpen)} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Material Name</label>
+                  <input 
+                    type="text" 
+                    value={formData.name} 
+                    onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                    required 
+                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Category</label>
+                  <select 
+                    value={formData.category} 
+                    onChange={(e) => setFormData({...formData, category: e.target.value})} 
+                    required 
+                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
+                  >
+                    <option value="">Select Category</option>
+                    <option value="Cement">Cement</option>
+                    <option value="Steel">Steel</option>
+                    <option value="Sand">Sand</option>
+                    <option value="Gravel">Gravel</option>
+                    <option value="Lumber">Lumber</option>
+                    <option value="Paint">Paint</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Quantity</label>
+                  <input 
+                    type="number" 
+                    value={formData.quantity} 
+                    onChange={(e) => setFormData({...formData, quantity: e.target.value})} 
+                    required 
+                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Unit</label>
+                  <select 
+                    value={formData.unit} 
+                    onChange={(e) => setFormData({...formData, unit: e.target.value})} 
+                    required 
+                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
+                  >
+                    <option value="">Select Unit</option>
+                    <option value="bags">bags</option>
+                    <option value="kg">kg</option>
+                    <option value="tons">tons</option>
+                    <option value="pieces">pieces</option>
+                    <option value="liters">liters</option>
+                    <option value="meters">meters</option>
+                    <option value="boxes">boxes</option>
+                    <option value="rolls">rolls</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Unit Cost (₱)</label>
+                  <input 
+                    type="number" 
+                    value={formData.unitPrice} 
+                    onChange={(e) => setFormData({...formData, unitPrice: e.target.value})} 
+                    required 
+                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Supplier</label>
+                  <input 
+                    type="text" 
+                    value={formData.supplier} 
+                    onChange={(e) => setFormData({...formData, supplier: e.target.value})} 
+                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Project (Optional)</label>
+                  <select 
+                    value={formData.project} 
+                    onChange={(e) => setFormData({...formData, project: e.target.value})} 
+                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
+                  >
+                    <option value="">Not Assigned</option>
+                    {projects.map((p: any) => (
+                      <option key={p._id} value={p._id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button 
+                  type="button" 
+                  onClick={() => { setIsCreateOpen(false); setIsEditOpen(false); }} 
+                  className="flex-1 py-4 text-gray-600 hover:bg-gray-100 rounded-3xl font-medium"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-[#F59E0B] hover:bg-orange-600 py-4 text-white font-semibold rounded-3xl"
+                >
+                  {isEditOpen ? 'Update Material' : 'Add Material'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

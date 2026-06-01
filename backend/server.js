@@ -20,6 +20,26 @@ app.use(cookieParser());
 // Routes
 app.use('/api/auth', authRoutes);
 
+// Add this after: app.use('/api/auth', authRoutes);
+const projectRoutes = require('./routes/project');
+app.use('/api/projects', projectRoutes);
+
+// Add after: app.use('/api/projects', projectRoutes);
+const workerRoutes = require('./routes/worker');
+app.use('/api/workers', workerRoutes);
+
+// Add after: app.use('/api/workers', workerRoutes);
+const materialRoutes = require('./routes/material');
+app.use('/api/materials', materialRoutes);
+
+// Add after: app.use('/api/materials', materialRoutes);
+const toolRoutes = require('./routes/tool');
+app.use('/api/tools', toolRoutes);
+
+// Add after: app.use('/api/tools', toolRoutes);
+const expenseRoutes = require('./routes/expense');
+app.use('/api/expenses', expenseRoutes);
+
 // Test route
 app.get('/', (req, res) => {
   res.send('✅ AGAP Construction Backend is running successfully!');
@@ -44,5 +64,37 @@ const startServer = async () => {
     console.error('❌ Failed to start server:', error.message);
   }
 };
+
+// ──────── TEMPORARY MANAGER SEED ROUTE (DELETE AFTER USE) ────────
+app.get('/api/seed-manager', async (req, res) => {
+  try {
+    const User = require('./models/User');
+
+    const managerExists = await User.findOne({ username: 'manager' });
+    
+    if (managerExists) {
+      return res.json({ message: '✅ Manager user already exists!' });
+    }
+
+    const manager = await User.create({
+      username: 'manager',
+      name: 'Juan Dela Cruz',
+      email: 'manager@agapconstruction.com',
+      password: 'manager123',           // Change later if you want
+      role: 'manager'
+    });
+
+    res.json({ 
+      message: '✅ Manager user created successfully!',
+      manager: {
+        username: manager.username,
+        name: manager.name,
+        role: manager.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 startServer();

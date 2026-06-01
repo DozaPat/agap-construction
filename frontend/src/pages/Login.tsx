@@ -1,95 +1,94 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Lock, User } from 'lucide-react';
-import axios from 'axios';
+import api from '../lib/api';
 
 const Login = () => {
-  const navigate = useNavigate();
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
-        username,
-        password
-      }, { 
-        withCredentials: true 
-      });
-
-      console.log('Login successful:', res.data);
-      navigate('/dashboard');   // Redirect to dashboard
+      const { data } = await api.post('/auth/login', { username, password });
+      
+      // Save user info
+      localStorage.setItem('user', JSON.stringify(data));
+      
+      // Redirect based on role
+      if (data.role === 'admin') {
+        navigate('/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.message || 'Invalid username or password');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
-      <div className="max-w-md w-full">
-        <div className="bg-gray-900 rounded-3xl shadow-2xl p-10 border border-gray-800">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-yellow-500 rounded-2xl flex items-center justify-center mb-4">
-              <Building2 className="w-10 h-10 text-gray-950" />
-            </div>
-            <h1 className="text-3xl font-bold text-white">Agap Construction</h1>
-            <p className="text-gray-400 mt-1">Construction Management System</p>
+    <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+      <div className="w-full max-w-md px-8">
+        {/* Logo */}
+        <div className="flex justify-center mb-10">
+          <div className="bg-white w-20 h-20 rounded-3xl flex items-center justify-center shadow-xl">
+            <img src="/logo.png" alt="AGAP" className="w-14 h-14" /> {/* replace with your logo if you have one */}
           </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <h1 className="text-4xl font-bold text-white text-center mb-2">Welcome Back</h1>
+        <p className="text-gray-400 text-center mb-10">Sign in to manage Agap Construction</p>
+
+        <form onSubmit={handleLogin} className="bg-white rounded-3xl p-8 shadow-2xl">
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Username</label>
-              <div className="relative">
-                <User className="absolute left-4 top-3.5 w-5 h-5 text-gray-500" />
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-2xl py-4 pl-11 pr-4 text-white focus:outline-none focus:border-yellow-500"
-                  placeholder="Enter username"
-                  required
-                />
-              </div>
+              <label className="block text-sm font-medium text-gray-600 mb-2">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
+                placeholder="admin"
+                required
+              />
             </div>
 
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-gray-500" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-2xl py-4 pl-11 pr-4 text-white focus:outline-none focus:border-yellow-500"
-                  placeholder="Enter password"
-                  required
-                />
-              </div>
+              <label className="block text-sm font-medium text-gray-600 mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
+                placeholder="••••••••"
+                required
+              />
             </div>
 
-            {error && <p className="text-red-500 text-sm text-center bg-red-950/30 p-3 rounded-2xl">{error}</p>}
+            {error && (
+              <p className="text-red-500 text-sm text-center bg-red-50 py-3 rounded-2xl">{error}</p>
+            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-yellow-500 hover:bg-yellow-400 transition-colors text-gray-950 font-semibold py-4 rounded-2xl text-lg disabled:opacity-70"
+              className="w-full bg-[#F59E0B] hover:bg-orange-600 py-4 rounded-3xl text-white font-semibold text-lg transition-colors disabled:opacity-70"
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
-          </form>
-
-          <div className="text-center mt-8 text-sm text-gray-500">
-            Demo Credentials<br />
-            <span className="font-mono">admin / admin123</span>
           </div>
+        </form>
+
+        <div className="text-center mt-8 text-gray-400 text-sm">
+          Default Admin Credentials:<br />
+          <span className="font-mono bg-gray-800 text-white px-3 py-1 rounded-2xl">admin / admin123</span>
         </div>
       </div>
     </div>
