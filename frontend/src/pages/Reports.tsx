@@ -11,6 +11,9 @@ const Reports = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(true);
 
+  // Success Modal
+  const [successModal, setSuccessModal] = useState<{ title: string; message: string } | null>(null);
+
   const fetchProjects = async () => {
     try {
       const { data } = await api.get('/projects');
@@ -35,6 +38,25 @@ const Reports = () => {
     const project = projects.find((p: any) => p._id === selectedProjectId);
     if (!project) return;
 
+    // Fetch related data
+    let expenses = [];
+    let workers = project.workers || [];
+    let materials = [];
+    let tools = [];
+
+    try {
+      const [expRes, matRes, toolRes] = await Promise.all([
+        api.get('/expenses'),
+        api.get('/materials'),
+        api.get('/tools')
+      ]);
+      expenses = expRes.data.filter((e: any) => e.project && e.project._id === selectedProjectId);
+      materials = matRes.data.filter((m: any) => m.project && m.project._id === selectedProjectId);
+      tools = toolRes.data.filter((t: any) => t.project && t.project._id === selectedProjectId);
+    } catch (error) {
+      console.error('Error fetching related data');
+    }
+
     const doc = new jsPDF('p', 'mm', 'a4');
     let y = 25;
 
@@ -53,7 +75,7 @@ const Reports = () => {
       : `${new Date(2025, selectedMonth - 1).toLocaleString('default', { month: 'long' })} ${selectedYear} Report`;
     doc.setFontSize(14);
     doc.text(period, 105, y, { align: 'center' });
-    y += 20;
+    y += 25;
 
     // Project Details
     doc.setFontSize(12);
@@ -64,7 +86,7 @@ const Reports = () => {
     doc.text(`Status: ${project.status?.toUpperCase() || 'PENDING'}`, 20, y);
     y += 8;
     doc.text(`Location: ${project.location || '—'}`, 20, y);
-    y += 15;
+    y += 20;
 
     // Financial Summary
     doc.setFontSize(14);
@@ -77,38 +99,60 @@ const Reports = () => {
     doc.text(`Remaining Budget: PHP ${(Number(project.budget || 0) - totalExpenses).toLocaleString()}`, 30, y);
     y += 20;
 
-    // Expense Summary (placeholder for now)
+    // Expenses Table
     doc.setFontSize(14);
     doc.text('Recent Expenses', 20, y);
     y += 10;
-    doc.setFontSize(11);
-    doc.text('Detailed expense list coming in full version.', 30, y);
+    doc.setFontSize(10);
+    if (expenses.length > 0) {
+      doc.text('Description', 20, y);
+      doc.text('Amount', 120, y);
+      y += 8;
+      expenses.slice(0, 8).forEach((exp: any) => {
+        doc.text(exp.description.substring(0, 35), 20, y);
+        doc.text(`PHP ${Number(exp.amount).toLocaleString()}`, 120, y);
+        y += 8;
+      });
+    } else {
+      doc.text('No expenses recorded yet.', 30, y);
+      y += 10;
+    }
     y += 15;
 
-    // Workers Summary
+    // Assigned Workers
     doc.setFontSize(14);
     doc.text('Assigned Workers', 20, y);
     y += 10;
-    doc.setFontSize(11);
-    doc.text('Detailed worker list coming in full version.', 30, y);
+    doc.setFontSize(10);
+    if (workers.length > 0) {
+      doc.text('Name', 20, y);
+      doc.text('Position', 90, y);
+      doc.text('Daily Salary', 150, y);
+      y += 8;
+      workers.slice(0, 8).forEach((w: any) => {
+        doc.text(w.name, 20, y);
+        doc.text(w.position, 90, y);
+        doc.text(`PHP ${Number(w.dailySalary || 0).toLocaleString()}`, 150, y);
+        y += 8;
+      });
+    } else {
+      doc.text('No workers assigned yet.', 30, y);
+      y += 10;
+    }
     y += 15;
-
-    // Materials & Tools
-    doc.setFontSize(14);
-    doc.text('Materials & Tools Summary', 20, y);
-    y += 10;
-    doc.setFontSize(11);
-    doc.text('Detailed inventory summary coming in full version.', 30, y);
 
     // Footer
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleDateString('en-PH')}`, 20, 280);
 
-    // Save PDF
     const fileName = `${project.name.replace(/[^a-zA-Z0-9]/g, '_')}_${reportType}_report.pdf`;
     doc.save(fileName);
 
-    alert('✅ Detailed PDF report downloaded successfully!');
+    // Replaced alert with clean success modal
+    setSuccessModal({ 
+      title: 'Report Generated', 
+      message: 'Detailed PDF report with tables downloaded successfully!' 
+    });
   };
 
   if (loading) return <div className="p-12 text-center text-gray-500">Loading reports...</div>;
@@ -173,9 +217,28 @@ const Reports = () => {
           className="w-full bg-[#F59E0B] hover:bg-orange-600 py-5 text-white font-semibold text-xl rounded-3xl flex items-center justify-center gap-3 transition-colors disabled:opacity-50"
         >
           <Download className="w-6 h-6" />
-          Generate & Download PDF Report
+          Generate & Download Detailed PDF Report
         </button>
       </div>
+
+      {/* Success Modal */}
+      {successModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-2xl flex items-center justify-center">
+              <span className="text-4xl">✅</span>
+            </div>
+            <h3 className="text-2xl font-semibold text-[#1E293B] mb-2">{successModal.title}</h3>
+            <p className="text-gray-600 mb-8">{successModal.message}</p>
+            <button 
+              onClick={() => setSuccessModal(null)}
+              className="w-full bg-[#F59E0B] hover:bg-orange-600 py-4 text-white font-semibold rounded-3xl text-lg"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

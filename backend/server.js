@@ -40,6 +40,10 @@ app.use('/api/tools', toolRoutes);
 const expenseRoutes = require('./routes/expense');
 app.use('/api/expenses', expenseRoutes);
 
+// Report Route
+const { generateReport } = require('./controllers/reportController');
+app.get('/api/reports/generate/:projectId', generateReport);
+
 // Test route
 app.get('/', (req, res) => {
   res.send('✅ AGAP Construction Backend is running successfully!');
@@ -65,31 +69,42 @@ const startServer = async () => {
   }
 };
 
-// ──────── TEMPORARY MANAGER SEED ROUTE (DELETE AFTER USE) ────────
-app.get('/api/seed-manager', async (req, res) => {
+// ──────── SEED ROUTE (Run once) ────────
+app.get('/api/seed', async (req, res) => {
   try {
     const User = require('./models/User');
 
-    const managerExists = await User.findOne({ username: 'manager' });
-    
-    if (managerExists) {
-      return res.json({ message: '✅ Manager user already exists!' });
+    // Admin
+    let admin = await User.findOne({ username: 'admin' });
+    if (!admin) {
+      admin = await User.create({
+        username: 'admin',
+        name: 'Agap Admin',
+        email: 'admin@agapconstruction.com',
+        password: 'admin123',
+        role: 'admin'
+      });
+      console.log('✅ Admin created');
     }
 
-    const manager = await User.create({
-      username: 'manager',
-      name: 'Juan Dela Cruz',
-      email: 'manager@agapconstruction.com',
-      password: 'manager123',           // Change later if you want
-      role: 'manager'
-    });
+    // Manager
+    let manager = await User.findOne({ username: 'manager' });
+    if (!manager) {
+      manager = await User.create({
+        username: 'manager',
+        name: 'Juan Manager',
+        email: 'manager@agapconstruction.com',
+        password: 'manager123',
+        role: 'manager'
+      });
+      console.log('✅ Manager created');
+    }
 
     res.json({ 
-      message: '✅ Manager user created successfully!',
-      manager: {
-        username: manager.username,
-        name: manager.name,
-        role: manager.role
+      message: '✅ Users seeded successfully!',
+      users: {
+        admin: { username: 'admin', password: 'admin123' },
+        manager: { username: 'manager', password: 'manager123' }
       }
     });
   } catch (error) {

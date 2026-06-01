@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import { LogIn } from 'lucide-react';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -16,16 +17,8 @@ const Login = () => {
 
     try {
       const { data } = await api.post('/auth/login', { username, password });
-      
-      // Save user info
       localStorage.setItem('user', JSON.stringify(data));
-      
-      // Redirect based on role
-      if (data.role === 'admin') {
-        navigate('/dashboard');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid username or password');
     } finally {
@@ -34,28 +27,73 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
-      <div className="w-full max-w-md px-8">
-        {/* Logo */}
-        <div className="flex justify-center mb-10">
-          <div className="bg-white w-20 h-20 rounded-3xl flex items-center justify-center shadow-xl">
-            <img src="/logo.png" alt="AGAP" className="w-14 h-14" /> {/* replace with your logo if you have one */}
+    <div className="min-h-screen flex">
+      {/* LEFT SIDE - Full Construction Image with Blur & Shadow */}
+      <div className="hidden lg:flex w-1/2 relative">
+        {/* Your construction site image */}
+        <img
+          src="./public/loginbg1.png"
+          alt="Construction Site"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        {/* Strong dark overlay + blur */}
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-md"></div>
+
+        {/* Content on top of image */}
+        <div className="relative z-10 flex flex-col justify-between h-full p-12 text-white">
+          {/* Logo at top left */}
+          <div className="flex items-center gap-3">
+            <div className="bg-white p-3 rounded-2xl shadow-2xl">
+              <img src="/logo.png" alt="AGAP" className="w-12 h-12 object-contain" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tighter">AGAP - Architect Gacad and Partners</h1>
+              <p className="text-[#F59E0B] text-2xl -mt-1">Construction Company</p>
+            </div>
+          </div>
+
+          {/* Tagline at bottom left with shadow */}
+          <div className="max-w-xs">
+            <p className="text-3xl font-light leading-tight drop-shadow-xl">
+              Professional construction management system.
+            </p>
+            <p className="text-white/90 mt-3 text-lg drop-shadow-xl">
+              Built for efficiency and growth.
+            </p>
+          </div>
+
+          {/* Decorative dots at bottom */}
+          <div className="flex gap-2">
+            <div className="w-3 h-1 bg-white rounded-full"></div>
+            <div className="w-3 h-1 bg-white/40 rounded-full"></div>
           </div>
         </div>
+      </div>
 
-        <h1 className="text-4xl font-bold text-white text-center mb-2">Welcome Back</h1>
-        <p className="text-gray-400 text-center mb-10">Sign in to manage Agap Construction</p>
+      {/* RIGHT SIDE - Form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+        <div className="w-full max-w-md">
+          <div className="mb-10">
+            <h2 className="text-4xl font-bold text-[#1E293B]">Sign In</h2>
+            <p className="text-gray-600 mt-2">Access your AGAP Construction dashboard</p>
+          </div>
 
-        <form onSubmit={handleLogin} className="bg-white rounded-3xl p-8 shadow-2xl">
-          <div className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm">
+                {error}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-2">Username</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
-                placeholder="admin"
+                className="w-full px-6 py-5 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B] text-lg"
+                placeholder="admin or manager"
                 required
               />
             </div>
@@ -66,29 +104,29 @@ const Login = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
+                className="w-full px-6 py-5 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B] text-lg"
                 placeholder="••••••••"
                 required
               />
             </div>
 
-            {error && (
-              <p className="text-red-500 text-sm text-center bg-red-50 py-3 rounded-2xl">{error}</p>
-            )}
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 accent-[#F59E0B]" />
+                <span className="text-gray-600">Remember me</span>
+              </label>
+              <a href="#" className="text-[#F59E0B] hover:underline">Forgot password?</a>
+            </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#F59E0B] hover:bg-orange-600 py-4 rounded-3xl text-white font-semibold text-lg transition-colors disabled:opacity-70"
+              className="w-full bg-[#F59E0B] hover:bg-orange-600 py-5 rounded-3xl text-white font-semibold text-xl transition-all active:scale-95 disabled:opacity-70 flex items-center justify-center gap-3"
             >
+              <LogIn className="w-6 h-6" />
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
-          </div>
-        </form>
-
-        <div className="text-center mt-8 text-gray-400 text-sm">
-          Default Admin Credentials:<br />
-          <span className="font-mono bg-gray-800 text-white px-3 py-1 rounded-2xl">admin / admin123</span>
+          </form>
         </div>
       </div>
     </div>

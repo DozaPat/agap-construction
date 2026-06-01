@@ -26,8 +26,14 @@ const Projects = () => {
     endDate: '',
     budget: '',
     status: 'pending',
-    progress: 0,                    // ← Added
+    progress: 0,
   });
+
+  // Toast / Success Modal
+  const [successModal, setSuccessModal] = useState<{ title: string; message: string } | null>(null);
+
+  // Delete Confirmation
+  const [deleteModal, setDeleteModal] = useState<string | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -68,7 +74,7 @@ const Projects = () => {
       endDate: project.endDate ? project.endDate.split('T')[0] : '',
       budget: project.budget,
       status: project.status,
-      progress: project.progress || 0,     // ← Added
+      progress: project.progress || 0,
     });
     setIsEditOpen(true);
   };
@@ -81,17 +87,17 @@ const Projects = () => {
       const payload = {
         ...formData,
         budget: Number(formData.budget),
-        progress: Number(formData.progress),   // ← Added
+        progress: Number(formData.progress),
         manager: user?._id,
       };
 
       if (isEdit && selectedProject) {
         await api.put(`/projects/${selectedProject._id}`, payload);
-        alert('✅ Project updated successfully!');
+        setSuccessModal({ title: 'Project Updated', message: 'Project updated successfully!' });
         setIsEditOpen(false);
       } else {
         await api.post('/projects', payload);
-        alert('✅ Project created successfully!');
+        setSuccessModal({ title: 'Project Created', message: 'Project created successfully!' });
         setIsCreateOpen(false);
       }
 
@@ -102,14 +108,20 @@ const Projects = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!isAdmin || !window.confirm('Delete this project permanently?')) return;
+  const handleDeleteClick = (id: string) => {
+    setDeleteModal(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
     try {
-      await api.delete(`/projects/${id}`);
-      alert('✅ Project deleted');
+      await api.delete(`/projects/${deleteModal}`);
+      setSuccessModal({ title: 'Project Deleted', message: 'Project deleted successfully!' });
       fetchProjects();
     } catch (error) {
       alert('❌ Delete failed');
+    } finally {
+      setDeleteModal(null);
     }
   };
 
@@ -241,7 +253,7 @@ const Projects = () => {
                   <button onClick={() => openEdit(project)} className="text-blue-600 hover:text-blue-700">
                     <Edit className="w-5 h-5" />
                   </button>
-                  <button onClick={() => handleDelete(project._id)} className="text-red-500 hover:text-red-600">
+                  <button onClick={() => handleDeleteClick(project._id)} className="text-red-500 hover:text-red-600">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -253,12 +265,18 @@ const Projects = () => {
 
       {/* Create & Edit Modal */}
       {(isCreateOpen || isEditOpen) && isAdmin && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl w-full max-w-2xl mx-4 overflow-hidden">
-            <div className="px-8 pt-8 pb-6 border-b">
-              <h2 className="text-3xl font-bold text-[#1E293B]">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="p-8 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-3xl font-semibold text-[#1E293B]">
                 {isEditOpen ? 'Edit Project' : 'Create New Project'}
               </h2>
+              <button
+                onClick={() => { setIsCreateOpen(false); setIsEditOpen(false); }}
+                className="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+              >
+                ×
+              </button>
             </div>
 
             <form onSubmit={(e) => handleSubmit(e, isEditOpen)} className="p-8 space-y-6">
@@ -310,7 +328,6 @@ const Projects = () => {
                   />
                 </div>
 
-                {/* New Progress Field */}
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-2">Progress (%)</label>
                   <input
@@ -428,6 +445,49 @@ const Projects = () => {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS MODAL */}
+      {successModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-2xl flex items-center justify-center">
+              <span className="text-4xl">✅</span>
+            </div>
+            <h3 className="text-2xl font-semibold text-[#1E293B] mb-2">{successModal.title}</h3>
+            <p className="text-gray-600 mb-8">{successModal.message}</p>
+            <button
+              onClick={() => setSuccessModal(null)}
+              className="w-full bg-[#F59E0B] hover:bg-orange-600 py-4 text-white font-semibold rounded-3xl text-lg"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 p-8 text-center">
+            <h3 className="text-xl font-semibold text-[#1E293B] mb-4">Delete this project permanently?</h3>
+            <p className="text-gray-600 mb-8">This action cannot be undone.</p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="flex-1 py-4 text-gray-600 font-medium border border-gray-200 rounded-3xl"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 bg-red-500 hover:bg-red-600 py-4 text-white font-semibold rounded-3xl"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

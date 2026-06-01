@@ -28,6 +28,12 @@ const Materials = () => {
     project: '',
   });
 
+  // Success Modal
+  const [successModal, setSuccessModal] = useState<{ title: string; message: string } | null>(null);
+
+  // Delete Confirmation Modal
+  const [deleteModal, setDeleteModal] = useState<string | null>(null);
+
   const fetchData = async () => {
     try {
       const [materialsRes, projectsRes] = await Promise.all([
@@ -83,11 +89,11 @@ const Materials = () => {
 
       if (isEdit && selectedMaterial) {
         await api.put(`/materials/${selectedMaterial._id}`, payload);
-        alert('✅ Material updated successfully!');
+        setSuccessModal({ title: 'Material Updated', message: 'Material updated successfully!' });
         setIsEditOpen(false);
       } else {
         await api.post('/materials', payload);
-        alert('✅ Material created successfully!');
+        setSuccessModal({ title: 'Material Created', message: 'Material created successfully!' });
         setIsCreateOpen(false);
       }
 
@@ -98,14 +104,20 @@ const Materials = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!isAdmin || !window.confirm('Delete this material?')) return;
+  const handleDeleteClick = (id: string) => {
+    setDeleteModal(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
     try {
-      await api.delete(`/materials/${id}`);
-      alert('✅ Material deleted');
+      await api.delete(`/materials/${deleteModal}`);
+      setSuccessModal({ title: 'Material Deleted', message: 'Material deleted successfully!' });
       fetchData();
     } catch (error) {
       alert('❌ Delete failed');
+    } finally {
+      setDeleteModal(null);
     }
   };
 
@@ -197,7 +209,7 @@ const Materials = () => {
                         <button onClick={() => openEdit(item)} className="text-blue-600 hover:text-blue-700">
                           <Edit className="w-5 h-5" />
                         </button>
-                        <button onClick={() => handleDelete(item._id)} className="text-red-500 hover:text-red-600">
+                        <button onClick={() => handleDeleteClick(item._id)} className="text-red-500 hover:text-red-600">
                           <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
@@ -338,6 +350,49 @@ const Materials = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {successModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-2xl flex items-center justify-center">
+              <span className="text-4xl">✅</span>
+            </div>
+            <h3 className="text-2xl font-semibold text-[#1E293B] mb-2">{successModal.title}</h3>
+            <p className="text-gray-600 mb-8">{successModal.message}</p>
+            <button 
+              onClick={() => setSuccessModal(null)}
+              className="w-full bg-[#F59E0B] hover:bg-orange-600 py-4 text-white font-semibold rounded-3xl text-lg"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 p-8 text-center">
+            <h3 className="text-xl font-semibold text-[#1E293B] mb-4">Delete this material?</h3>
+            <p className="text-gray-600 mb-8">This action cannot be undone.</p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setDeleteModal(null)}
+                className="flex-1 py-4 text-gray-600 font-medium border border-gray-200 rounded-3xl"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="flex-1 bg-red-500 hover:bg-red-600 py-4 text-white font-semibold rounded-3xl"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
