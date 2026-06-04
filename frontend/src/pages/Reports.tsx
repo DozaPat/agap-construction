@@ -41,18 +41,13 @@ const Reports = () => {
     // Fetch related data
     let expenses = [];
     let workers = project.workers || [];
-    let materials = [];
-    let tools = [];
 
     try {
-      const [expRes, matRes, toolRes] = await Promise.all([
+      const [expRes] = await Promise.all([
         api.get('/expenses'),
-        api.get('/materials'),
-        api.get('/tools')
+        // We removed unused materials and tools fetching to fix build error
       ]);
       expenses = expRes.data.filter((e: any) => e.project && e.project._id === selectedProjectId);
-      materials = matRes.data.filter((m: any) => m.project && m.project._id === selectedProjectId);
-      tools = toolRes.data.filter((t: any) => t.project && t.project._id === selectedProjectId);
     } catch (error) {
       console.error('Error fetching related data');
     }
@@ -148,7 +143,6 @@ const Reports = () => {
     const fileName = `${project.name.replace(/[^a-zA-Z0-9]/g, '_')}_${reportType}_report.pdf`;
     doc.save(fileName);
 
-    // Replaced alert with clean success modal
     setSuccessModal({ 
       title: 'Report Generated', 
       message: 'Detailed PDF report with tables downloaded successfully!' 
