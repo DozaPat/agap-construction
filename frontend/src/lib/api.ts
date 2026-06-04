@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'https://agap-construction-backend.onrender.com',
   withCredentials: true,        // Important for http-only cookies (JWT)
   headers: {
     'Content-Type': 'application/json',
