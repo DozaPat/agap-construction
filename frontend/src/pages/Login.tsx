@@ -32,7 +32,7 @@ const Login = () => {
       <div className="hidden lg:flex w-1/2 relative">
         {/* Your construction site image */}
         <img
-          src="./public/loginbg1.png"
+          src="/loginbg1.png"
           alt="Construction Site"
           className="absolute inset-0 w-full h-full object-cover"
         />
