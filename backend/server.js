@@ -4,51 +4,47 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
-const authRoutes = require('./routes/auth');
 
 const app = express();
 
-// Middleware
+// ==================== CORS FIX FOR VERCEL ====================
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: [
+    'http://localhost:5173',
+    'https://agap-construction.vercel.app',           // ← Add your actual Vercel URL here
+    'https://agap-construction-*.vercel.app'          // ← This covers preview URLs
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 
 // Routes
+const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
-// Add this after: app.use('/api/auth', authRoutes);
 const projectRoutes = require('./routes/project');
 app.use('/api/projects', projectRoutes);
 
-// Add after: app.use('/api/projects', projectRoutes);
 const workerRoutes = require('./routes/worker');
 app.use('/api/workers', workerRoutes);
 
-// Add after: app.use('/api/workers', workerRoutes);
 const materialRoutes = require('./routes/material');
 app.use('/api/materials', materialRoutes);
 
-// Add after: app.use('/api/materials', materialRoutes);
 const toolRoutes = require('./routes/tool');
 app.use('/api/tools', toolRoutes);
 
-// Add after: app.use('/api/tools', toolRoutes);
 const expenseRoutes = require('./routes/expense');
 app.use('/api/expenses', expenseRoutes);
-
-// Report Route
-const { generateReport } = require('./controllers/reportController');
-app.get('/api/reports/generate/:projectId', generateReport);
 
 // Test route
 app.get('/', (req, res) => {
   res.send('✅ AGAP Construction Backend is running successfully!');
 });
-
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -62,54 +58,11 @@ const startServer = async () => {
     await connectDB();
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
   }
 };
-
-// ──────── SEED ROUTE (Run once) ────────
-app.get('/api/seed', async (req, res) => {
-  try {
-    const User = require('./models/User');
-
-    // Admin
-    let admin = await User.findOne({ username: 'admin' });
-    if (!admin) {
-      admin = await User.create({
-        username: 'admin',
-        name: 'Agap Admin',
-        email: 'admin@agapconstruction.com',
-        password: 'admin123',
-        role: 'admin'
-      });
-      console.log('✅ Admin created');
-    }
-
-    // Manager
-    let manager = await User.findOne({ username: 'manager' });
-    if (!manager) {
-      manager = await User.create({
-        username: 'manager',
-        name: 'Juan Manager',
-        email: 'manager@agapconstruction.com',
-        password: 'manager123',
-        role: 'manager'
-      });
-      console.log('✅ Manager created');
-    }
-
-    res.json({ 
-      message: '✅ Users seeded successfully!',
-      users: {
-        admin: { username: 'admin', password: 'admin123' },
-        manager: { username: 'manager', password: 'manager123' }
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 startServer();
