@@ -11,12 +11,13 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://agap-construction.vercel.app',           // ← Add your actual Vercel URL here
-    'https://agap-construction-*.vercel.app'          // ← This covers preview URLs
+    'https://agap-construction-4g7u25r7x-doza-s-projects.vercel.app',   // ← Your exact Vercel URL
+    'https://agap-construction.vercel.app',                           // ← Main domain (if any)
+    'https://*.vercel.app'                                            // ← Covers all preview URLs
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 app.use(express.json());
