@@ -1,15 +1,14 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { LogIn } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,13 +17,8 @@ const Login = () => {
 
     try {
       const { data } = await api.post('/auth/login', { username, password });
-      
       localStorage.setItem('user', JSON.stringify(data));
-      login(data);
-
-      // Force page reload to sync AuthContext and UI
-      window.location.href = '/';
-
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid username or password');
     } finally {
@@ -36,15 +30,19 @@ const Login = () => {
     <div className="min-h-screen flex">
       {/* LEFT SIDE - Full Construction Image with Blur & Shadow */}
       <div className="hidden lg:flex w-1/2 relative">
+        {/* Your construction site image */}
         <img
           src="/loginbg1.png"
           alt="Construction Site"
           className="absolute inset-0 w-full h-full object-cover"
         />
 
+        {/* Strong dark overlay + blur */}
         <div className="absolute inset-0 bg-black/50 backdrop-blur-md"></div>
 
+        {/* Content on top of image */}
         <div className="relative z-10 flex flex-col justify-between h-full p-12 text-white">
+          {/* Logo at top left */}
           <div className="flex items-center gap-3">
             <div className="bg-white p-3 rounded-2xl shadow-2xl">
               <img src="/logo.png" alt="AGAP" className="w-12 h-12 object-contain" />
@@ -55,6 +53,7 @@ const Login = () => {
             </div>
           </div>
 
+          {/* Tagline at bottom left with shadow */}
           <div className="max-w-xs">
             <p className="text-3xl font-light leading-tight drop-shadow-xl">
               Professional construction management system.
@@ -64,6 +63,7 @@ const Login = () => {
             </p>
           </div>
 
+          {/* Decorative dots at bottom */}
           <div className="flex gap-2">
             <div className="w-3 h-1 bg-white rounded-full"></div>
             <div className="w-3 h-1 bg-white/40 rounded-full"></div>
