@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { LogIn } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';   // ← Add this
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -10,8 +9,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const navigate = useNavigate();
-  const { login } = useAuth();     // ← Add this
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,11 +19,10 @@ const Login = () => {
     try {
       const { data } = await api.post('/auth/login', { username, password });
       
-      // Update both localStorage and AuthContext
       localStorage.setItem('user', JSON.stringify(data));
-      login(data);                    // ← This was missing
+      login(data);
 
-      // Force reload to ensure everything syncs properly
+      // Force page reload to sync AuthContext and UI
       window.location.href = '/';
 
     } catch (err: any) {
