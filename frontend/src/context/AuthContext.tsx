@@ -1,10 +1,12 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
-interface User {
+export interface User {
   _id: string;
   username: string;
   name: string;
+  email?: string;
   role: 'admin' | 'manager';
+  token: string;
 }
 
 interface AuthContextType {
@@ -18,14 +20,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      localStorage.removeItem('user');
+      return null;
     }
-  }, []);
+  });
 
   const login = (userData: User) => {
     setUser(userData);
@@ -47,6 +50,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+// This hook intentionally shares the provider module with AuthProvider.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

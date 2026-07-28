@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Navigate, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { LogIn } from 'lucide-react';
+import { useAuth, type User } from '../context/AuthContext';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -9,22 +11,36 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { user, login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     setError('');
 
     try {
-      const { data } = await api.post('/auth/login', { username, password });
-      localStorage.setItem('user', JSON.stringify(data));
-      navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid username or password');
+      const { data } = await api.post<User>('/auth/login', {
+        username: username.trim(),
+        password
+      });
+      login(data);
+      navigate('/dashboard', { replace: true });
+    } catch (err: unknown) {
+      setError(
+        axios.isAxiosError(err)
+          ? err.response?.data?.message || 'Unable to sign in. Please try again.'
+          : 'Unable to sign in. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen flex">

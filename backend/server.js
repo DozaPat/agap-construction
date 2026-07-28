@@ -7,14 +7,28 @@ const connectDB = require('./config/db');
 
 const app = express();
 
-// ==================== CORS FIX FOR VERCEL ====================
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'https://agap-construction.vercel.app'
+];
+const configuredOrigins = (process.env.CLIENT_URLS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([...defaultAllowedOrigins, ...configuredOrigins]);
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://agap-construction-4g7u25r7x-doza-s-projects.vercel.app',   // ← Your exact Vercel URL
-    'https://agap-construction.vercel.app',                           // ← Main domain (if any)
-    'https://*.vercel.app'                                            // ← Covers all preview URLs
-  ],
+  origin(origin, callback) {
+    const isAllowedVercelPreview =
+      typeof origin === 'string' &&
+      /^https:\/\/agap-construction(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin);
+
+    if (!origin || allowedOrigins.has(origin) || isAllowedVercelPreview) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Origin is not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -63,6 +77,7 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
+    process.exitCode = 1;
   }
 };
 
