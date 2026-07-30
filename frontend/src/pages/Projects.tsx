@@ -128,18 +128,18 @@ const Projects = () => {
   if (loading) return <div className="p-12 text-center text-gray-500">Loading projects...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-7xl">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-[#1E293B]">Projects</h1>
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold text-[#1E293B] sm:text-4xl">Projects</h1>
           <p className="text-gray-600 mt-1">Manage all ongoing and upcoming construction projects</p>
         </div>
 
         {isAdmin && (
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-3 bg-[#F59E0B] hover:bg-orange-600 px-6 py-3.5 rounded-3xl text-white font-semibold transition-colors"
+            className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             New Project
@@ -148,7 +148,7 @@ const Projects = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+      <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4">
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B]">
           <p className="text-gray-500 text-sm">Total Projects</p>
           <p className="text-5xl font-bold text-[#1E293B] mt-2">{projects.length}</p>
@@ -168,7 +168,7 @@ const Projects = () => {
       </div>
 
       {/* Search + Filter */}
-      <div className="bg-white rounded-3xl p-2 flex gap-3 mb-8 shadow-sm">
+      <div className="mb-8 flex flex-col gap-3 rounded-3xl bg-white p-2 shadow-sm sm:flex-row">
         <div className="flex-1 relative">
           <Search className="absolute left-6 top-4 text-gray-400" />
           <input
@@ -182,7 +182,7 @@ const Projects = () => {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-8 bg-[#1E293B] text-white rounded-3xl focus:outline-none"
+          className="min-h-14 w-full rounded-3xl bg-[#1E293B] px-6 text-white focus:outline-none sm:w-auto sm:px-8"
         >
           <option value="all">All Status</option>
           <option value="pending">Pending</option>
@@ -202,11 +202,11 @@ const Projects = () => {
             <div
               key={project._id}
               onClick={() => openDetails(project)}
-              className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B] hover:shadow-md transition-shadow cursor-pointer"
+              className="cursor-pointer rounded-3xl border border-l-4 border-gray-100 border-l-[#F59E0B] bg-white p-5 shadow-sm transition-shadow hover:shadow-md sm:p-8"
             >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-2xl font-semibold text-[#1E293B]">{project.name}</h3>
+              <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                <div className="min-w-0">
+                  <h3 className="break-words text-xl font-semibold text-[#1E293B] sm:text-2xl">{project.name}</h3>
                   <div className="flex items-center gap-2 text-gray-500 mt-3">
                     <MapPin className="w-4 h-4" />
                     <span>{project.location}</span>
@@ -231,10 +231,10 @@ const Projects = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-8 mt-10">
+              <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-8 sm:mt-10">
                 <div>
                   <p className="text-xs text-gray-500">Budget</p>
-                  <p className="text-2xl font-bold text-[#1E293B]">₱{project.budget?.toLocaleString()}</p>
+                  <p className="break-words text-xl font-bold text-[#1E293B] sm:text-2xl">₱{project.budget?.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Start Date</p>
@@ -267,8 +267,8 @@ const Projects = () => {
       {(isCreateOpen || isEditOpen) && isAdmin && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto">
-            <div className="p-8 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-3xl font-semibold text-[#1E293B]">
+            <div className="flex items-center justify-between border-b border-gray-100 p-5 sm:p-8">
+              <h2 className="text-2xl font-semibold text-[#1E293B] sm:text-3xl">
                 {isEditOpen ? 'Edit Project' : 'Create New Project'}
               </h2>
               <button
@@ -279,8 +279,8 @@ const Projects = () => {
               </button>
             </div>
 
-            <form onSubmit={(e) => handleSubmit(e, isEditOpen)} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
+            <form onSubmit={(e) => handleSubmit(e, isEditOpen)} className="space-y-6 p-5 sm:p-8">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-600 mb-2">Project Name</label>
                   <input
@@ -403,9 +403,9 @@ const Projects = () => {
 
       {/* Details Modal */}
       {isDetailsOpen && selectedProject && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl w-full max-w-lg mx-4 p-8">
-            <h2 className="text-3xl font-bold text-[#1E293B] mb-6">{selectedProject.name}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-5 sm:p-8">
+            <h2 className="mb-6 break-words text-2xl font-bold text-[#1E293B] sm:text-3xl">{selectedProject.name}</h2>
             <div className="space-y-6">
               <div className="flex items-center gap-3">
                 <MapPin className="w-5 h-5 text-gray-400" />

@@ -92,56 +92,56 @@ const Dashboard = () => {
   if (loading) return <div className="p-12 text-center text-gray-500">Loading dashboard...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-7xl">
       {/* Header */}
-      <div className="flex justify-between items-center mb-10">
-        <div>
-          <h1 className="text-4xl font-bold text-[#1E293B]">Dashboard</h1>
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:mb-10 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold text-[#1E293B] sm:text-4xl">Dashboard</h1>
           <p className="text-gray-600 mt-1">Overview of Agap Construction operations</p>
         </div>
-        <button className="flex items-center gap-3 bg-[#F59E0B] hover:bg-orange-600 px-6 py-3.5 rounded-3xl text-white font-semibold transition-colors">
+        <button className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 sm:w-auto">
           + New Project
         </button>
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B]">
+      <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:mb-12">
+        <div className="rounded-3xl border border-l-4 border-gray-100 border-l-[#F59E0B] bg-white p-5 shadow-sm sm:p-6">
           <p className="text-gray-500 text-sm">Active Projects</p>
-          <p className="text-5xl font-bold text-[#1E293B] mt-2">{activeProjects}</p>
+          <p className="mt-2 text-4xl font-bold text-[#1E293B] sm:text-5xl">{activeProjects}</p>
           <p className="text-green-600 text-sm mt-6 flex items-center gap-1">+3 this month</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-[#10B981]">
+        <div className="rounded-3xl border border-l-4 border-gray-100 border-l-[#10B981] bg-white p-5 shadow-sm sm:p-6">
           <p className="text-gray-500 text-sm">Total Workers</p>
-          <p className="text-5xl font-bold text-[#1E293B] mt-2">{totalWorkers}</p>
+          <p className="mt-2 text-4xl font-bold text-[#1E293B] sm:text-5xl">{totalWorkers}</p>
           <p className="text-green-600 text-sm mt-6">41 on site today</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B]">
+        <div className="rounded-3xl border border-l-4 border-gray-100 border-l-[#F59E0B] bg-white p-5 shadow-sm sm:p-6">
           <p className="text-gray-500 text-sm">Low Stock Materials</p>
-          <p className="text-5xl font-bold text-[#F59E0B] mt-2">{lowStockMaterials}</p>
+          <p className="mt-2 text-4xl font-bold text-[#F59E0B] sm:text-5xl">{lowStockMaterials}</p>
           <p className="text-amber-600 text-sm mt-6">Need immediate reordering</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-[#EF4444]">
+        <div className="rounded-3xl border border-l-4 border-gray-100 border-l-[#EF4444] bg-white p-5 shadow-sm sm:p-6">
           <p className="text-gray-500 text-sm">This Month Expenses</p>
-          <p className="text-5xl font-bold text-[#1E293B] mt-2">₱{thisMonthExpenses.toLocaleString()}</p>
+          <p className="mt-2 break-words text-4xl font-bold text-[#1E293B] sm:text-5xl">₱{thisMonthExpenses.toLocaleString()}</p>
           <p className="text-red-500 text-sm mt-6">-12% from last month</p>
         </div>
       </div>
 
       {/* Analytics Overview */}
-      <div className="flex items-center gap-4 my-12">
+      <div className="my-10 flex items-center gap-3 sm:my-12 sm:gap-4">
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-        <h2 className="text-2xl font-semibold text-[#1E293B] whitespace-nowrap">Analytics Overview</h2>
+        <h2 className="whitespace-nowrap text-lg font-semibold text-[#1E293B] sm:text-2xl">Analytics Overview</h2>
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B]">
-          <h3 className="text-xl font-semibold text-[#1E293B] mb-6">Monthly Expenses Trend</h3>
+        <div className="rounded-3xl border border-l-4 border-gray-100 border-l-[#F59E0B] bg-white p-4 shadow-sm sm:p-8">
+          <h3 className="mb-6 text-lg font-semibold text-[#1E293B] sm:text-xl">Monthly Expenses Trend</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={monthlyExpenses}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -154,8 +154,8 @@ const Dashboard = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B]">
-          <h3 className="text-xl font-semibold text-[#1E293B] mb-6">Project Progress</h3>
+        <div className="rounded-3xl border border-l-4 border-gray-100 border-l-[#F59E0B] bg-white p-4 shadow-sm sm:p-8">
+          <h3 className="mb-6 text-lg font-semibold text-[#1E293B] sm:text-xl">Project Progress</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={projectProgressData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -171,7 +171,7 @@ const Dashboard = () => {
       {/* Recent Activity + Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
         {/* Recent Activity */}
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B]">
+        <div className="rounded-3xl border border-l-4 border-gray-100 border-l-[#F59E0B] bg-white p-5 shadow-sm sm:p-8">
           <div className="flex items-center gap-3 mb-6">
             <Clock className="w-6 h-6 text-gray-500" />
             <h3 className="text-xl font-semibold text-[#1E293B]">Recent Activity</h3>
@@ -190,7 +190,7 @@ const Dashboard = () => {
         </div>
 
         {/* Status Pie Chart */}
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B]">
+        <div className="rounded-3xl border border-l-4 border-gray-100 border-l-[#F59E0B] bg-white p-5 shadow-sm sm:p-8">
           <h3 className="text-xl font-semibold text-[#1E293B] mb-6">Project Status Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>

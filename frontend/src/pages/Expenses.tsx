@@ -138,18 +138,18 @@ const Expenses = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-7xl">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-[#1E293B]">Expenses</h1>
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold text-[#1E293B] sm:text-4xl">Expenses</h1>
           <p className="text-gray-600 mt-1">Track all project and operational expenses</p>
         </div>
 
         {isAdmin && (
           <button 
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-3 bg-[#F59E0B] hover:bg-orange-600 px-6 py-3.5 rounded-3xl text-white font-semibold transition-colors"
+            className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             Add Expense
@@ -158,7 +158,7 @@ const Expenses = () => {
       </div>
 
       {/* Search + Project Filter */}
-      <div className="bg-white rounded-3xl p-2 flex gap-3 mb-8 shadow-sm items-center">
+      <div className="mb-8 flex flex-col items-stretch gap-3 rounded-3xl bg-white p-2 shadow-sm sm:flex-row sm:items-center">
         <div className="flex-1 relative">
           <Search className="absolute left-6 top-4 text-gray-400" />
           <input
@@ -173,7 +173,7 @@ const Expenses = () => {
         <select
           value={projectFilter}
           onChange={(e) => setProjectFilter(e.target.value)}
-          className="px-8 bg-[#1E293B] text-white rounded-3xl focus:outline-none"
+          className="min-h-14 w-full rounded-3xl bg-[#1E293B] px-6 text-white focus:outline-none sm:w-auto sm:px-8"
         >
           <option value="all">All Projects</option>
           {projects.map((p: any) => (
@@ -183,8 +183,8 @@ const Expenses = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-        <table className="w-full">
+      <div className="overflow-x-auto rounded-3xl bg-white shadow-sm">
+        <table className="w-full min-w-[800px]">
           <thead>
             <tr className="border-b bg-[#1E293B]">
               <th className="px-8 py-5 text-left text-sm font-medium text-white">Date</th>
@@ -241,16 +241,16 @@ const Expenses = () => {
 
       {/* ==================== ADD / EDIT EXPENSE MODAL ==================== */}
       {(isCreateOpen || isEditOpen) && isAdmin && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl w-full max-w-2xl mx-4 overflow-hidden">
-            <div className="px-8 pt-8 pb-6 border-b">
-              <h2 className="text-3xl font-bold text-[#1E293B]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white">
+            <div className="border-b px-5 pb-5 pt-6 sm:px-8 sm:pb-6 sm:pt-8">
+              <h2 className="text-2xl font-bold text-[#1E293B] sm:text-3xl">
                 {isEditOpen ? 'Edit Expense' : 'Add New Expense'}
               </h2>
             </div>
 
-            <form onSubmit={(e) => handleSubmit(e, isEditOpen)} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
+            <form onSubmit={(e) => handleSubmit(e, isEditOpen)} className="space-y-6 p-5 sm:p-8">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-2">Date</label>
                   <input type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]" />

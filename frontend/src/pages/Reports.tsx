@@ -152,13 +152,13 @@ const Reports = () => {
   if (loading) return <div className="p-12 text-center text-gray-500">Loading reports...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-4xl font-bold text-[#1E293B]">Generate Reports</h1>
+    <div className="mx-auto w-full max-w-7xl">
+      <div className="mb-8 sm:mb-10">
+        <h1 className="text-3xl font-bold text-[#1E293B] sm:text-4xl">Generate Reports</h1>
         <p className="text-gray-600 mt-1">Create and download professional PDF reports for your projects</p>
       </div>
 
-      <div className="bg-white rounded-3xl p-8 shadow-sm max-w-2xl mx-auto">
+      <div className="mx-auto max-w-2xl rounded-3xl bg-white p-5 shadow-sm sm:p-8">
         <div className="mb-8">
           <label className="block text-sm font-medium text-gray-500 mb-3">Select Project</label>
           <select 
@@ -177,7 +177,7 @@ const Reports = () => {
 
         <div className="mb-8">
           <label className="block text-sm font-medium text-gray-500 mb-3">Report Type</label>
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
             <button onClick={() => setReportType('monthly')} className={`flex-1 py-4 rounded-3xl font-medium transition-colors ${reportType === 'monthly' ? 'bg-[#F59E0B] text-white' : 'bg-[#F8FAFC] text-gray-700 hover:bg-gray-200'}`}>Monthly Report</button>
             <button onClick={() => setReportType('yearly')} className={`flex-1 py-4 rounded-3xl font-medium transition-colors ${reportType === 'yearly' ? 'bg-[#F59E0B] text-white' : 'bg-[#F8FAFC] text-gray-700 hover:bg-gray-200'}`}>Yearly Report</button>
           </div>
@@ -187,7 +187,7 @@ const Reports = () => {
           <label className="block text-sm font-medium text-gray-500 mb-3">
             {reportType === 'yearly' ? 'Select Year' : 'Select Month & Year'}
           </label>
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
             {reportType === 'monthly' && (
               <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="flex-1 bg-[#F8FAFC] border border-gray-200 rounded-3xl py-5 px-6 focus:outline-none focus:border-[#F59E0B]">
                 {Array.from({ length: 12 }, (_, i) => (
@@ -208,7 +208,7 @@ const Reports = () => {
         <button
           onClick={generatePDF}
           disabled={!selectedProjectId}
-          className="w-full bg-[#F59E0B] hover:bg-orange-600 py-5 text-white font-semibold text-xl rounded-3xl flex items-center justify-center gap-3 transition-colors disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-4 py-4 text-base font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50 sm:py-5 sm:text-xl"
         >
           <Download className="w-6 h-6" />
           Generate & Download Detailed PDF Report
