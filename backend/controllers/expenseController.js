@@ -1,4 +1,5 @@
 const Expense = require('../models/Expense');
+const { recordActivity } = require('../services/activityService');
 
 // Get all expenses
 const getExpenses = async (req, res) => {
@@ -29,6 +30,13 @@ const getExpense = async (req, res) => {
 const createExpense = async (req, res) => {
   try {
     const expense = await Expense.create(req.body);
+    await recordActivity({
+      action: 'created',
+      entityType: 'expense',
+      entityId: expense._id,
+      entityName: expense.description,
+      actor: req.user?._id
+    });
     res.status(201).json(expense);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -44,6 +52,13 @@ const updateExpense = async (req, res) => {
       { new: true, runValidators: true }
     );
     if (!expense) return res.status(404).json({ message: 'Expense not found' });
+    await recordActivity({
+      action: 'updated',
+      entityType: 'expense',
+      entityId: expense._id,
+      entityName: expense.description,
+      actor: req.user?._id
+    });
     res.json(expense);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -55,6 +70,13 @@ const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findByIdAndDelete(req.params.id);
     if (!expense) return res.status(404).json({ message: 'Expense not found' });
+    await recordActivity({
+      action: 'deleted',
+      entityType: 'expense',
+      entityId: expense._id,
+      entityName: expense.description,
+      actor: req.user?._id
+    });
     res.json({ message: 'Expense deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });

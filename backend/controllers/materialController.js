@@ -1,4 +1,5 @@
 const Material = require('../models/Material');
+const { recordActivity } = require('../services/activityService');
 
 // Get all materials
 const getMaterials = async (req, res) => {
@@ -27,6 +28,13 @@ const getMaterial = async (req, res) => {
 const createMaterial = async (req, res) => {
   try {
     const material = await Material.create(req.body);
+    await recordActivity({
+      action: 'created',
+      entityType: 'material',
+      entityId: material._id,
+      entityName: material.name,
+      actor: req.user?._id
+    });
     res.status(201).json(material);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -42,6 +50,13 @@ const updateMaterial = async (req, res) => {
       { new: true, runValidators: true }
     );
     if (!material) return res.status(404).json({ message: 'Material not found' });
+    await recordActivity({
+      action: 'updated',
+      entityType: 'material',
+      entityId: material._id,
+      entityName: material.name,
+      actor: req.user?._id
+    });
     res.json(material);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -53,6 +68,13 @@ const deleteMaterial = async (req, res) => {
   try {
     const material = await Material.findByIdAndDelete(req.params.id);
     if (!material) return res.status(404).json({ message: 'Material not found' });
+    await recordActivity({
+      action: 'deleted',
+      entityType: 'material',
+      entityId: material._id,
+      entityName: material.name,
+      actor: req.user?._id
+    });
     res.json({ message: 'Material deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });

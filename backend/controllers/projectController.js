@@ -1,4 +1,5 @@
 const Project = require('../models/Project');
+const { recordActivity } = require('../services/activityService');
 
 // @desc    Get all projects
 // @route   GET /api/projects
@@ -32,6 +33,13 @@ const getProject = async (req, res) => {
 const createProject = async (req, res) => {
   try {
     const project = await Project.create(req.body);
+    await recordActivity({
+      action: 'created',
+      entityType: 'project',
+      entityId: project._id,
+      entityName: project.name,
+      actor: req.user?._id
+    });
     res.status(201).json(project);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -48,6 +56,13 @@ const updateProject = async (req, res) => {
       { new: true, runValidators: true }
     );
     if (!project) return res.status(404).json({ message: 'Project not found' });
+    await recordActivity({
+      action: 'updated',
+      entityType: 'project',
+      entityId: project._id,
+      entityName: project.name,
+      actor: req.user?._id
+    });
     res.json(project);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -60,6 +75,13 @@ const deleteProject = async (req, res) => {
   try {
     const project = await Project.findByIdAndDelete(req.params.id);
     if (!project) return res.status(404).json({ message: 'Project not found' });
+    await recordActivity({
+      action: 'deleted',
+      entityType: 'project',
+      entityId: project._id,
+      entityName: project.name,
+      actor: req.user?._id
+    });
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });

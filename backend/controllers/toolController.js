@@ -1,4 +1,5 @@
 const Tool = require('../models/Tool');
+const { recordActivity } = require('../services/activityService');
 
 // Get all tools
 const getTools = async (req, res) => {
@@ -27,6 +28,13 @@ const getTool = async (req, res) => {
 const createTool = async (req, res) => {
   try {
     const tool = await Tool.create(req.body);
+    await recordActivity({
+      action: 'created',
+      entityType: 'tool',
+      entityId: tool._id,
+      entityName: tool.name,
+      actor: req.user?._id
+    });
     res.status(201).json(tool);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -42,6 +50,13 @@ const updateTool = async (req, res) => {
       { new: true, runValidators: true }
     );
     if (!tool) return res.status(404).json({ message: 'Tool not found' });
+    await recordActivity({
+      action: 'updated',
+      entityType: 'tool',
+      entityId: tool._id,
+      entityName: tool.name,
+      actor: req.user?._id
+    });
     res.json(tool);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -53,6 +68,13 @@ const deleteTool = async (req, res) => {
   try {
     const tool = await Tool.findByIdAndDelete(req.params.id);
     if (!tool) return res.status(404).json({ message: 'Tool not found' });
+    await recordActivity({
+      action: 'deleted',
+      entityType: 'tool',
+      entityId: tool._id,
+      entityName: tool.name,
+      actor: req.user?._id
+    });
     res.json({ message: 'Tool deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
