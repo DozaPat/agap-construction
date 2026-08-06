@@ -90,20 +90,36 @@ const MetricCard = ({
   accentClassName,
   iconClassName,
   icon: Icon,
-}: MetricCardProps) => (
-  <div className={`rounded-3xl border border-l-4 border-gray-100 bg-white p-5 shadow-sm sm:p-6 ${accentClassName}`}>
-    <div className="flex items-start justify-between gap-4">
-      <div className="min-w-0">
-        <p className="text-sm text-gray-500">{title}</p>
-        <p className="mt-2 break-words text-4xl font-bold text-[#1E293B] sm:text-5xl">{value}</p>
+}: MetricCardProps) => {
+  const digitCount = String(value).replace(/\D/g, '').length;
+  const valueSizeClass =
+    digitCount >= 15
+      ? 'text-sm'
+      : digitCount >= 12
+        ? 'text-base'
+      : digitCount >= 9
+        ? 'text-xl'
+        : digitCount >= 6
+          ? 'text-2xl sm:text-3xl'
+          : 'text-4xl sm:text-5xl';
+
+  return (
+    <div className={`min-w-0 overflow-hidden rounded-3xl border border-l-4 border-gray-100 bg-white p-5 shadow-sm sm:p-6 ${accentClassName}`}>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-gray-500">{title}</p>
+          <p className={`mt-2 max-w-full whitespace-nowrap font-bold leading-none tracking-tight text-[#1E293B] tabular-nums ${valueSizeClass}`}>
+            {value}
+          </p>
+        </div>
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:h-14 sm:w-14 ${iconClassName}`}>
+          <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
+        </div>
       </div>
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:h-14 sm:w-14 ${iconClassName}`}>
-        <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
-      </div>
+      <p className={`mt-6 text-sm ${detailClassName}`}>{detail}</p>
     </div>
-    <p className={`mt-6 text-sm ${detailClassName}`}>{detail}</p>
-  </div>
-);
+  );
+};
 
 const activityIcons: Record<ActivityEntity, LucideIcon> = {
   project: FolderKanban,

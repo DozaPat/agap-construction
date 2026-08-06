@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Projects from './pages/Projects';
+import Projects from './pages/ProjectsPage';
 import Workers from './pages/Workers';
 import Materials from './pages/Materials';
 import Tools from './pages/Tools';

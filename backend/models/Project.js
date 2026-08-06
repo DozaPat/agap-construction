@@ -50,9 +50,26 @@ const projectSchema = new mongoose.Schema({
   totalExpenses: {
     type: Number,
     default: 0
+  },
+  requestKey: {
+    type: String,
+    unique: true,
+    sparse: true,
+    select: false
   }
-}, { 
-  timestamps: true 
+}, {
+  timestamps: true
+});
+
+projectSchema.pre('validate', function validateProjectDatesAndProgress() {
+  if (this.startDate && this.endDate && this.endDate < this.startDate) {
+    this.invalidate('endDate', 'End date cannot be earlier than the start date');
+  }
+
+  if (this.progress >= 100 || this.status === 'completed') {
+    this.progress = 100;
+    this.status = 'completed';
+  }
 });
 
 const Project = mongoose.model('Project', projectSchema);
