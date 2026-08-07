@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, ClipboardCheck, UsersRound } from 'lucide-react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import Attendance from '../components/Attendance/Attendance';
 
 const Workers = () => {
   const { isAdmin } = useAuth();
   const [workers, setWorkers] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'directory' | 'attendance'>('directory');
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -132,7 +134,7 @@ const Workers = () => {
           <p className="text-gray-600 mt-1">Manage your construction team</p>
         </div>
 
-        {isAdmin && (
+        {activeTab === 'directory' && isAdmin && (
           <button 
             onClick={() => setIsCreateOpen(true)}
             className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 sm:w-auto"
@@ -143,6 +145,35 @@ const Workers = () => {
         )}
       </div>
 
+      <div className="mb-8 grid w-full grid-cols-2 gap-1 rounded-2xl bg-white p-1.5 shadow-sm sm:max-w-md">
+        <button
+          type="button"
+          onClick={() => setActiveTab('directory')}
+          className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-colors sm:text-base ${
+            activeTab === 'directory'
+              ? 'bg-[#1E293B] text-white'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <UsersRound className="h-5 w-5 shrink-0" />
+          <span className="truncate">Worker Directory</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('attendance')}
+          className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-colors sm:text-base ${
+            activeTab === 'attendance'
+              ? 'bg-[#F59E0B] text-white'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <ClipboardCheck className="h-5 w-5 shrink-0" />
+          <span className="truncate">Attendance</span>
+        </button>
+      </div>
+
+      {activeTab === 'directory' ? (
+        <>
       {/* Total Workers Card */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-[#F59E0B] mb-10 max-w-xs">
         <p className="text-gray-500 text-sm">Total Workers</p>
@@ -240,6 +271,10 @@ const Workers = () => {
           </tbody>
         </table>
       </div>
+        </>
+      ) : (
+        <Attendance projects={projects} />
+      )}
 
       {/* ==================== ADD / EDIT MODAL ==================== */}
       {(isCreateOpen || isEditOpen) && isAdmin && (
@@ -334,19 +369,6 @@ const Workers = () => {
                   </select>
                 </div>
               </div>
-
-              {/* ==================== ATTENDANCE SHEET PREVIEW ==================== */}
-              {formData.assignedProject && (
-                <div className="border border-gray-200 rounded-3xl p-6 mt-4">
-                  <h4 className="font-medium text-gray-700 mb-4">Attendance Sheet Preview - Assigned Workers</h4>
-                  <div className="text-sm text-gray-500">
-                    {projects.find(p => p._id === formData.assignedProject)?.name}
-                  </div>
-                  <div className="mt-3 text-xs text-gray-400">
-                    (Workers already assigned to this project will appear here in full version)
-                  </div>
-                </div>
-              )}
 
               <div className="flex gap-4 pt-6">
                 <button type="button" onClick={() => { setIsCreateOpen(false); setIsEditOpen(false); }} className="flex-1 py-4 text-gray-600 hover:bg-gray-100 rounded-3xl font-medium">Cancel</button>

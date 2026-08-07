@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const Expense = require('../models/Expense');
+const AttendanceSheet = require('../models/AttendanceSheet');
 const Worker = require('../models/Worker');
 const Material = require('../models/Material');
 const Tool = require('../models/Tool');
@@ -27,18 +28,65 @@ const pickProjectFields = (body) => editableFields.reduce((result, field) => {
 const addExpenseTotals = async (projects) => {
   if (!projects.length) return [];
 
-  const totals = await Expense.aggregate([
-    { $match: { project: { $in: projects.map((project) => project._id) } } },
-    { $group: { _id: '$project', total: { $sum: '$amount' } } }
+  const projectIds = projects.map((project) => project._id);
+  const [expenseTotals, payrollTotals] = await Promise.all([
+    Expense.aggregate([
+      { $match: { project: { $in: projectIds } } },
+      { $group: { _id: '$project', total: { $sum: '$amount' } } }
+    ]),
+    AttendanceSheet.aggregate([
+      { $match: { project: { $in: projectIds } } },
+      { $unwind: '$records' },
+      {
+        $group: {
+          _id: '$project',
+          total: {
+            $sum: {
+              $add: [
+                {
+                  $multiply: [
+                    { $ifNull: ['$records.dailySalary', 0] },
+                    {
+                      $add: [
+                        { $cond: ['$records.days.monday', 1, 0] },
+                        { $cond: ['$records.days.tuesday', 1, 0] },
+                        { $cond: ['$records.days.wednesday', 1, 0] },
+                        { $cond: ['$records.days.thursday', 1, 0] },
+                        { $cond: ['$records.days.friday', 1, 0] },
+                        { $cond: ['$records.days.saturday', 1, 0] },
+                        { $cond: ['$records.days.sunday', 1, 0] }
+                      ]
+                    }
+                  ]
+                },
+                { $ifNull: ['$records.bonus', 0] },
+                { $ifNull: ['$records.overtime', 0] }
+              ]
+            }
+          }
+        }
+      }
+    ])
   ]);
-  const totalsByProject = new Map(
-    totals.map((item) => [item._id.toString(), item.total])
+  const expensesByProject = new Map(
+    expenseTotals.map((item) => [item._id.toString(), item.total])
+  );
+  const payrollByProject = new Map(
+    payrollTotals.map((item) => [item._id.toString(), item.total])
   );
 
-  return projects.map((project) => ({
-    ...project.toObject(),
-    totalExpenses: totalsByProject.get(project._id.toString()) || 0
-  }));
+  return projects.map((project) => {
+    const projectId = project._id.toString();
+    const recordedExpenses = expensesByProject.get(projectId) || 0;
+    const totalPayroll = payrollByProject.get(projectId) || 0;
+
+    return {
+      ...project.toObject(),
+      recordedExpenses,
+      totalPayroll,
+      totalExpenses: recordedExpenses + totalPayroll
+    };
+  });
 };
 
 // @desc    Get all projects

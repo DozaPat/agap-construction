@@ -48,6 +48,9 @@ const workerRoutes = require('./routes/worker');
 app.use('/api/workers', workerRoutes);
 
 const materialRoutes = require('./routes/material');
+const attendanceRoutes = require('./routes/attendance');
+app.use('/api/attendance', attendanceRoutes);
+
 app.use('/api/materials', materialRoutes);
 
 const toolRoutes = require('./routes/tool');
