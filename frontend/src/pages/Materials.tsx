@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { AlertTriangle, Banknote, Download, Edit, Package, Plus, Search, Trash2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,7 +18,7 @@ const Materials = () => {
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
-  const [projectFilter, setProjectFilter] = useState('all'); // 'all' or project _id
+  const [projectFilter, setProjectFilter] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -53,14 +55,44 @@ const Materials = () => {
     fetchData();
   }, []);
 
-  // Filter logic
-  const filteredMaterials = materials.filter(material => {
-    const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesProject = projectFilter === 'all' || 
-      (material.project && material.project._id === projectFilter);
-    return matchesSearch && matchesProject;
+  const selectedProject = projects.find((project) => project._id === projectFilter);
+  const projectMaterials = materials.filter((material) => material.project?._id === projectFilter);
+  const filteredMaterials = projectMaterials.filter((material) => {
+    const query = searchTerm.trim().toLowerCase();
+    return [material.materialId || '', material.name, material.category || '', material.supplier || '']
+      .some((value) => value.toLowerCase().includes(query));
   });
+  const totalMaterialValue = projectMaterials.reduce(
+    (total, material) =>
+      total + Number(material.totalValue ?? material.quantity * material.unitPrice),
+    0,
+  );
+  const lowStockItems = projectMaterials.filter(
+    (material) =>
+      material.isLowStock ??
+      Number(material.quantity) <= Number(material.reorderPoint ?? 20),
+  ).length;
 
+  const formatMoney = (amount: number) =>
+    new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      maximumFractionDigits: 2,
+    }).format(Number(amount || 0));
+
+  const openCreate = () => {
+    if (!projectFilter) return;
+    setFormData({
+      name: '',
+      category: '',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      supplier: '',
+      project: projectFilter,
+    });
+    setIsCreateOpen(true);
+  };
   const openEdit = (material: any) => {
     setSelectedMaterial(material);
     setFormData({
@@ -121,6 +153,120 @@ const Materials = () => {
     }
   };
 
+  const downloadPdf = () => {
+    if (!selectedProject || projectMaterials.length === 0) return;
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('AGAP Construction - Materials Inventory', pageWidth / 2, 14, {
+      align: 'center',
+    });
+    doc.setFontSize(13);
+    doc.text(selectedProject.name, pageWidth / 2, 22, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Materials: ' + projectMaterials.length, 12, 29);
+    doc.text('Low stock: ' + lowStockItems, 104, 29);
+    doc.text(
+      'Total value: PHP ' + totalMaterialValue.toLocaleString('en-PH'),
+      178,
+      29,
+    );
+
+    autoTable(doc, {
+      startY: 34,
+      head: [[
+        'Material ID',
+        'Material',
+        'Category',
+        'Quantity',
+        'Unit',
+        'Unit Cost',
+        'Total Value',
+        'Stock',
+        'Supplier',
+      ]],
+      body: projectMaterials.map((material) => {
+        const total = Number(
+          material.totalValue ?? material.quantity * material.unitPrice,
+        );
+        const low =
+          material.isLowStock ??
+          Number(material.quantity) <= Number(material.reorderPoint ?? 20);
+        return [
+          material.materialId,
+          material.name,
+          material.category,
+          Number(material.quantity).toLocaleString('en-PH'),
+          material.unit,
+          'PHP ' + Number(material.unitPrice).toLocaleString('en-PH'),
+          'PHP ' + total.toLocaleString('en-PH'),
+          low ? 'Low' : 'Sufficient',
+          material.supplier || '-',
+        ];
+      }),
+      theme: 'grid',
+      margin: { left: 10, right: 10 },
+      styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.2 },
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 33 },
+        1: { cellWidth: 37 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 18, halign: 'right' },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 25, halign: 'right' },
+        6: { cellWidth: 28, halign: 'right' },
+        7: { cellWidth: 20 },
+        8: { cellWidth: 48 },
+      },
+    });
+
+    const tableEnd = (doc as jsPDF & {
+      lastAutoTable?: { finalY: number };
+    }).lastAutoTable?.finalY || 55;
+    let summaryY = tableEnd + 9;
+    if (summaryY > 185) {
+      doc.addPage('a4', 'landscape');
+      summaryY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(
+      'Total material value: PHP ' +
+        totalMaterialValue.toLocaleString('en-PH'),
+      12,
+      summaryY,
+    );
+    doc.text('Low stock items: ' + lowStockItems, 150, summaryY);
+
+    const pageCount = doc.getNumberOfPages();
+    for (let page = 1; page <= pageCount; page += 1) {
+      doc.setPage(page);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text('Generated ' + new Date().toLocaleString('en-PH'), 10, 203);
+      doc.text('Page ' + page + ' of ' + pageCount, pageWidth - 10, 203, {
+        align: 'right',
+      });
+    }
+
+    const safeProjectName = selectedProject.name
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    doc.save('Materials_' + safeProjectName + '.pdf');
+  };
+
   if (loading) {
     return <div className="p-12 text-center text-gray-500">Loading materials...</div>;
   }
@@ -136,8 +282,10 @@ const Materials = () => {
 
         {isAdmin && (
           <button 
-            onClick={() => setIsCreateOpen(true)}
-            className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 sm:w-auto"
+            onClick={openCreate}
+            disabled={!projectFilter}
+            title={projectFilter ? 'Add material' : 'Select a project first'}
+            className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             Add Material
@@ -145,42 +293,89 @@ const Materials = () => {
         )}
       </div>
 
-      {/* Search + Project Filter */}
-      <div className="mb-8 flex flex-col items-stretch gap-3 rounded-3xl bg-white p-2 shadow-sm sm:flex-row sm:items-center">
-        <div className="flex-1 relative">
-          <Search className="absolute left-6 top-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search materials..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#F8FAFC] border border-gray-200 rounded-3xl py-4 pl-14 pr-6 focus:outline-none focus:border-[#F59E0B]"
-          />
-        </div>
-
-        {/* Project Filter Dropdown */}
-        <select
-          value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
-          className="min-h-14 w-full rounded-3xl bg-[#1E293B] px-6 text-white focus:outline-none sm:w-auto sm:px-8"
-        >
-          <option value="all">All Projects</option>
-          {projects.map((p: any) => (
-            <option key={p._id} value={p._id}>{p.name}</option>
-          ))}
-        </select>
+      <div className="mb-8 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+        <label>
+          <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Package className="h-5 w-5 text-amber-500" />
+            Select a project to view its materials
+          </span>
+          <select
+            value={projectFilter}
+            onChange={(e) => {
+              setProjectFilter(e.target.value);
+              setSearchTerm('');
+            }}
+            className="min-h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 text-slate-800 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+          >
+            <option value="">Choose a project...</option>
+            {projects.map((p: any) => (
+              <option key={p._id} value={p._id}>{p.name}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
+      {projectFilter ? (
+        <>
+          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0 overflow-hidden rounded-3xl border border-l-4 border-slate-100 border-l-blue-600 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                <Banknote className="h-6 w-6" />
+              </div>
+              <p className="text-sm text-slate-500">Total Material Value</p>
+              <p className="mt-2 break-words text-[clamp(1.6rem,4vw,2.5rem)] font-bold leading-tight text-slate-800">
+                {formatMoney(totalMaterialValue)}
+              </p>
+              <p className="mt-3 text-sm text-blue-700">
+                {projectMaterials.length} material item{projectMaterials.length === 1 ? '' : 's'}
+              </p>
+            </div>
+            <div className="min-w-0 overflow-hidden rounded-3xl border border-l-4 border-slate-100 border-l-amber-500 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <p className="text-sm text-slate-500">Low Stock Items</p>
+              <p className="mt-2 text-[clamp(1.6rem,4vw,2.5rem)] font-bold leading-tight text-slate-800">
+                {lowStockItems}
+              </p>
+              <p className="mt-3 text-sm text-amber-700">Quantity at or below reorder point</p>
+            </div>
+          </div>
+
+          <div className="mb-6 flex flex-col gap-3 rounded-3xl bg-white p-2 shadow-sm sm:flex-row">
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                placeholder="Search by ID, material, category, or supplier..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="min-h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-14 pr-5 outline-none focus:border-amber-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={downloadPdf}
+              disabled={projectMaterials.length === 0}
+              className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-5 w-5" />
+              Download PDF
+            </button>
+          </div>
       {/* Materials Table */}
-      <div className="overflow-x-auto rounded-3xl bg-white shadow-sm">
-        <table className="w-full min-w-[820px]">
+      <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[1180px]">
           <thead>
             <tr className="border-b bg-[#1E293B]">
+              <th className="px-5 py-5 text-left text-sm font-medium text-white">Material ID</th>
               <th className="px-8 py-5 text-left text-sm font-medium text-white">Material</th>
               <th className="px-8 py-5 text-left text-sm font-medium text-white">Quantity</th>
               <th className="px-8 py-5 text-left text-sm font-medium text-white">Unit</th>
               <th className="px-8 py-5 text-left text-sm font-medium text-white">Unit Cost</th>
-              <th className="px-8 py-5 text-left text-sm font-medium text-white">Project</th>
+              <th className="px-8 py-5 text-right text-sm font-medium text-white">Total Value</th>
+              <th className="px-5 py-5 text-left text-sm font-medium text-white">Stock</th>
               <th className="px-8 py-5 text-left text-sm font-medium text-white">Supplier</th>
               <th className="px-8 py-5 text-right text-sm font-medium text-white">Actions</th>
             </tr>
@@ -188,21 +383,35 @@ const Materials = () => {
           <tbody className="divide-y">
             {filteredMaterials.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-8 py-12 text-center text-gray-400">
+                <td colSpan={9} className="px-8 py-12 text-center text-gray-400">
                   No materials found.
                 </td>
               </tr>
             ) : (
               filteredMaterials.map((item: any) => (
                 <tr key={item._id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-5 py-6">
+                    <span className="rounded-xl bg-slate-100 px-3 py-2 font-mono text-xs font-semibold text-slate-700">
+                      {item.materialId}
+                    </span>
+                  </td>
                   <td className="px-8 py-6 font-medium text-[#1E293B]">{item.name}</td>
                   <td className="px-8 py-6 font-semibold">{item.quantity}</td>
                   <td className="px-8 py-6 text-gray-600">{item.unit}</td>
-                  <td className="px-8 py-6 font-medium">₱{item.unitPrice}</td>
-                  <td className="px-8 py-6 text-gray-600">
-                    {item.project?.name || 'Not Assigned'}
+                  <td className="px-8 py-6 text-right font-medium">{formatMoney(item.unitPrice)}</td>
+                  <td className="px-8 py-6 text-right font-bold text-blue-700">
+                    {formatMoney(Number(item.totalValue ?? item.quantity * item.unitPrice))}
                   </td>
-                  <td className="px-8 py-6 text-gray-600">{item.supplier || '—'}</td>
+                  <td className="px-5 py-6">
+                    <span className={'rounded-full px-3 py-1 text-xs font-semibold ' +
+                      ((item.isLowStock ?? Number(item.quantity) <= Number(item.reorderPoint ?? 20))
+                        ? 'bg-rose-100 text-rose-700'
+                        : 'bg-emerald-100 text-emerald-700')}>
+                      {(item.isLowStock ?? Number(item.quantity) <= Number(item.reorderPoint ?? 20))
+                        ? 'Low Stock' : 'Sufficient'}
+                    </span>
+                  </td>
+                  <td className="px-8 py-6 text-gray-600">{item.supplier || '-'}</td>
                   <td className="px-8 py-6 text-right">
                     {isAdmin && (
                       <div className="flex items-center justify-end gap-4">
@@ -220,7 +429,21 @@ const Materials = () => {
             )}
           </tbody>
         </table>
+        </div>
       </div>
+        </>
+      ) : (
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+          <Package className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+          <h2 className="text-xl font-semibold text-slate-700">
+            Select a project to view materials
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            Summary cards, project inventory, calculated values, and the PDF
+            report will appear after you choose a project.
+          </p>
+        </div>
+      )}
 
       {/* ADD / EDIT MODAL - YOUR ORIGINAL STYLE */}
       {(isCreateOpen || isEditOpen) && isAdmin && (
@@ -309,6 +532,15 @@ const Materials = () => {
                   />
                 </div>
 
+                <div className="rounded-3xl border border-blue-100 bg-blue-50 p-5">
+                  <p className="text-sm font-medium text-blue-700">Calculated Total Value</p>
+                  <p className="mt-2 break-words text-2xl font-bold text-blue-900">
+                    {formatMoney(
+                      Number(formData.quantity || 0) * Number(formData.unitPrice || 0),
+                    )}
+                  </p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-2">Supplier</label>
                   <input 
@@ -320,13 +552,14 @@ const Materials = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">Project (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Project</label>
                   <select 
                     value={formData.project} 
+                    required
                     onChange={(e) => setFormData({...formData, project: e.target.value})} 
                     className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
                   >
-                    <option value="">Not Assigned</option>
+                    <option value="">Select Project</option>
                     {projects.map((p: any) => (
                       <option key={p._id} value={p._id}>{p.name}</option>
                     ))}

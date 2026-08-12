@@ -1,6 +1,18 @@
 const mongoose = require('mongoose');
+const { randomBytes } = require('crypto');
+
+const generateMaterialId = () =>
+  `MAT-${Date.now().toString(36).toUpperCase()}-${randomBytes(3)
+    .toString('hex')
+    .toUpperCase()}`;
 
 const materialSchema = new mongoose.Schema({
+  materialId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    immutable: true
+  },
   name: { 
     type: String, 
     required: true,
@@ -43,7 +55,8 @@ const materialSchema = new mongoose.Schema({
   },
   project: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Project' 
+    ref: 'Project',
+    required: true
   },
   reorderPoint: {
     type: Number,
@@ -56,6 +69,12 @@ const materialSchema = new mongoose.Schema({
   }
 }, { 
   timestamps: true 
+});
+
+materialSchema.pre('validate', function assignMaterialId() {
+  if (this.isNew && !this.materialId) {
+    this.materialId = generateMaterialId();
+  }
 });
 
 const Material = mongoose.model('Material', materialSchema);
