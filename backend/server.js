@@ -62,6 +62,9 @@ app.use('/api/expenses', expenseRoutes);
 const activityRoutes = require('./routes/activity');
 app.use('/api/activities', activityRoutes);
 
+const dashboardRoutes = require('./routes/dashboard');
+app.use('/api/dashboard', dashboardRoutes);
+
 // Test route
 app.get('/', (req, res) => {
   res.send('✅ AGAP Construction Backend is running successfully!');
