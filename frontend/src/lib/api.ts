@@ -1,11 +1,16 @@
 import axios from 'axios';
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, '');
+const baseURL = configuredApiUrl
+  ? configuredApiUrl.endsWith('/api')
+    ? configuredApiUrl
+    : `${configuredApiUrl}/api`
+  : import.meta.env.DEV
+    ? 'http://localhost:5000/api'
+    : 'https://agap-construction-backend.onrender.com/api';
+
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_URL ||
-    (import.meta.env.DEV
-      ? 'http://localhost:5000/api'
-      : 'https://agap-construction-backend.onrender.com/api'),
+  baseURL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

@@ -6,7 +6,7 @@ import Projects from './pages/ProjectsPage';
 import Workers from './pages/Workers';
 import Materials from './pages/Materials';
 import Tools from './pages/Tools';
-import Expenses from './pages/Expenses';
+import Expenses from './pages/ExpensesPage';
 import Reports from './pages/Reports';
 import Layout from './components/Layout/Layout';
 

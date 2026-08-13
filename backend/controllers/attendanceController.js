@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const AttendanceSheet = require('../models/AttendanceSheet');
 const Project = require('../models/Project');
 const Worker = require('../models/Worker');
@@ -65,6 +66,64 @@ const serializeRecord = (record) => ({
   bonus: Number(record.bonus || 0),
   overtime: Number(record.overtime || 0)
 });
+
+const calculatePayroll = (record) => {
+  const daysPresent = dayKeys.reduce(
+    (total, key) => total + (record.days?.[key] ? 1 : 0),
+    0
+  );
+  const dailySalary = Number(record.dailySalary || 0);
+  const baseSalary = daysPresent * dailySalary;
+  const bonus = Number(record.bonus || 0);
+  const overtime = Number(record.overtime || 0);
+  return {
+    daysPresent,
+    dailySalary,
+    baseSalary,
+    bonus,
+    overtime,
+    total: baseSalary + bonus + overtime
+  };
+};
+
+// GET /api/attendance/payroll?project=:projectId&from=YYYY-MM-DD&to=YYYY-MM-DD
+const getPayrollLedger = async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.project) {
+      if (!mongoose.isValidObjectId(req.query.project)) {
+        return res.status(400).json({ message: 'Invalid project' });
+      }
+      filter.project = req.query.project;
+    }
+    if (req.query.from || req.query.to) {
+      filter.weekStart = {};
+      if (req.query.from) filter.weekStart.$gte = new Date(`${req.query.from}T00:00:00.000Z`);
+      if (req.query.to) filter.weekStart.$lte = new Date(`${req.query.to}T23:59:59.999Z`);
+    }
+
+    const sheets = await AttendanceSheet.find(filter)
+      .populate('project', 'name')
+      .sort({ weekStart: -1 })
+      .lean();
+
+    const payroll = sheets.flatMap((sheet) => sheet.records.map((record) => ({
+      _id: `${sheet._id}-${record.worker}`,
+      sheetId: sheet._id,
+      project: sheet.project,
+      weekStart: sheet.weekStart,
+      worker: record.worker,
+      workerName: record.workerName,
+      position: record.position,
+      ...calculatePayroll(record),
+      updatedAt: sheet.updatedAt
+    }))).filter((record) => record.total > 0);
+
+    res.json(payroll);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // GET /api/attendance?project=:projectId&weekStart=YYYY-MM-DD
 const getAttendanceSheet = async (req, res) => {
@@ -227,6 +286,7 @@ const saveAttendanceSheet = async (req, res) => {
 };
 
 module.exports = {
+  getPayrollLedger,
   getAttendanceSheet,
   saveAttendanceSheet
 };

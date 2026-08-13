@@ -4,12 +4,14 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import NumberedPagination from '../components/NumberedPagination';
 
 const Materials = () => {
   const { isAdmin } = useAuth();
   const [materials, setMaterials] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [materialPage, setMaterialPage] = useState(1);
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -62,6 +64,12 @@ const Materials = () => {
     return [material.materialId || '', material.name, material.category || '', material.supplier || '']
       .some((value) => value.toLowerCase().includes(query));
   });
+  const materialPageSize = 10;
+  const activeMaterialPage = Math.min(materialPage, Math.max(1, Math.ceil(filteredMaterials.length / materialPageSize)));
+  const paginatedMaterials = filteredMaterials.slice(
+    (activeMaterialPage - 1) * materialPageSize,
+    activeMaterialPage * materialPageSize
+  );
   const totalMaterialValue = projectMaterials.reduce(
     (total, material) =>
       total + Number(material.totalValue ?? material.quantity * material.unitPrice),
@@ -304,6 +312,7 @@ const Materials = () => {
             onChange={(e) => {
               setProjectFilter(e.target.value);
               setSearchTerm('');
+              setMaterialPage(1);
             }}
             className="min-h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 text-slate-800 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
           >
@@ -349,7 +358,7 @@ const Materials = () => {
                 type="search"
                 placeholder="Search by ID, material, category, or supplier..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setMaterialPage(1); }}
                 className="min-h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-14 pr-5 outline-none focus:border-amber-500"
               />
             </div>
@@ -388,7 +397,7 @@ const Materials = () => {
                 </td>
               </tr>
             ) : (
-              filteredMaterials.map((item: any) => (
+              paginatedMaterials.map((item: any) => (
                 <tr key={item._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-6">
                     <span className="rounded-xl bg-slate-100 px-3 py-2 font-mono text-xs font-semibold text-slate-700">
@@ -430,6 +439,7 @@ const Materials = () => {
           </tbody>
         </table>
         </div>
+        <NumberedPagination currentPage={activeMaterialPage} totalItems={filteredMaterials.length} pageSize={materialPageSize} maxVisiblePages={10} itemLabel="materials" onPageChange={setMaterialPage} />
       </div>
         </>
       ) : (

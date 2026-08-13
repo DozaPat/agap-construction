@@ -12,6 +12,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import NumberedPagination from '../NumberedPagination';
 
 interface ProjectSummary {
   _id: string;
@@ -102,8 +103,18 @@ const Attendance = ({ projects }: AttendanceProps) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [attendancePage, setAttendancePage] = useState(1);
 
   const selectedProject = projects.find((project) => project._id === projectId);
+  const attendancePageSize = 10;
+  const activeAttendancePage = Math.min(
+    attendancePage,
+    Math.max(1, Math.ceil(records.length / attendancePageSize))
+  );
+  const paginatedRecords = records.slice(
+    (activeAttendancePage - 1) * attendancePageSize,
+    activeAttendancePage * attendancePageSize
+  );
 
   const summary = useMemo(() => records.reduce(
     (totals, record) => {
@@ -157,11 +168,13 @@ const Attendance = ({ projects }: AttendanceProps) => {
   };
 
   const handleProjectChange = (nextProjectId: string) => {
+    setAttendancePage(1);
     setProjectId(nextProjectId);
     void loadAttendance(nextProjectId, weekStart);
   };
 
   const handleWeekChange = (value: string) => {
+    setAttendancePage(1);
     const monday = getMonday(value);
     setWeekStart(monday);
     void loadAttendance(projectId, monday);
@@ -471,7 +484,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
                         No workers are assigned to this project.
                       </td>
                     </tr>
-                  ) : records.map((record) => {
+                  ) : paginatedRecords.map((record) => {
                     const calculation = calculateRecord(record);
                     return (
                       <tr key={record.worker} className="hover:bg-slate-50">
@@ -559,6 +572,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
                 )}
               </table>
             </div>
+            <NumberedPagination currentPage={activeAttendancePage} totalItems={records.length} pageSize={attendancePageSize} maxVisiblePages={10} itemLabel="workers" onPageChange={setAttendancePage} />
           </div>
         </>
       )}

@@ -23,6 +23,7 @@ import {
 import axios from 'axios';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import NumberedPagination from '../components/NumberedPagination';
 
 interface Project {
   _id: string;
@@ -535,12 +536,19 @@ const ToolsPanel = ({ value }: { value: ToolsPanelValue }) => {
     onProjectChange, onSearchChange, onCategoryChange, onConditionChange, onStatusChange,
     onSort, onCheckout, onEdit, onCheckin, onDelete
   } = value;
+  const [toolPage, setToolPage] = useState(1);
+  const toolPageSize = 10;
+  const activeToolPage = Math.min(toolPage, Math.max(1, Math.ceil(visibleTools.length / toolPageSize)));
+  const paginatedTools = visibleTools.slice(
+    (activeToolPage - 1) * toolPageSize,
+    activeToolPage * toolPageSize
+  );
 
   return (
     <>
       <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <label htmlFor="tools-project" className="mb-2 block text-sm font-semibold text-slate-700">Select a project to view its tools</label>
-        <select id="tools-project" value={selectedProjectId} onChange={(event) => onProjectChange(event.target.value)} className="min-h-14 w-full rounded-2xl border border-slate-200 bg-slate-900 px-5 font-medium text-white outline-none focus:ring-2 focus:ring-amber-400">
+        <select id="tools-project" value={selectedProjectId} onChange={(event) => { onProjectChange(event.target.value); setToolPage(1); }} className="min-h-14 w-full rounded-2xl border border-slate-200 bg-slate-900 px-5 font-medium text-white outline-none focus:ring-2 focus:ring-amber-400">
           <option value="">Choose a project...</option>
           {projects.map((project: Project) => <option key={project._id} value={project._id}>{project.name}</option>)}
         </select>
@@ -565,14 +573,14 @@ const ToolsPanel = ({ value }: { value: ToolsPanelValue }) => {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_220px_190px_210px]">
               <label className="relative block">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search by tool name, ID, or worker..."
+                <input value={search} onChange={(event) => { onSearchChange(event.target.value); setToolPage(1); }} placeholder="Search by tool name, ID, or worker..."
                   className="min-h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 outline-none focus:border-amber-400" />
               </label>
-              <FilterSelect label="Category" value={categoryFilter} onChange={onCategoryChange} options={categories.map((category) => ({ value: category, label: category }))} />
-              <FilterSelect label="Condition" value={conditionFilter} onChange={onConditionChange} options={[
+              <FilterSelect label="Category" value={categoryFilter} onChange={(nextValue) => { onCategoryChange(nextValue); setToolPage(1); }} options={categories.map((category) => ({ value: category, label: category }))} />
+              <FilterSelect label="Condition" value={conditionFilter} onChange={(nextValue) => { onConditionChange(nextValue); setToolPage(1); }} options={[
                 { value: 'good', label: 'Good' }, { value: 'needs repair', label: 'Needs Repair' }, { value: 'damaged', label: 'Damaged' }
               ]} />
-              <FilterSelect label="Status" value={statusFilter} onChange={onStatusChange} options={[
+              <FilterSelect label="Status" value={statusFilter} onChange={(nextValue) => { onStatusChange(nextValue); setToolPage(1); }} options={[
                 { value: 'available', label: 'Available' }, { value: 'in-use', label: 'In Use' }, { value: 'under-maintenance', label: 'Under Maintenance' }
               ]} />
             </div>
@@ -597,7 +605,7 @@ const ToolsPanel = ({ value }: { value: ToolsPanelValue }) => {
                     <tr><td colSpan={9} className="px-6 py-14 text-center text-slate-500">Loading {selectedProject?.name} tools...</td></tr>
                   ) : visibleTools.length === 0 ? (
                     <tr><td colSpan={9} className="px-6 py-14 text-center text-slate-500">No tools match this project and the selected filters.</td></tr>
-                  ) : visibleTools.map((tool: Tool) => (
+                  ) : paginatedTools.map((tool: Tool) => (
                     <tr key={tool._id} className="transition hover:bg-slate-50">
                       <td className="whitespace-nowrap px-5 py-5 font-mono text-sm font-semibold text-blue-700">{tool.toolId}</td>
                       <td className="px-5 py-5 font-semibold text-slate-900">{tool.name}</td>
@@ -621,6 +629,7 @@ const ToolsPanel = ({ value }: { value: ToolsPanelValue }) => {
                 </tbody>
               </table>
             </div>
+            <NumberedPagination currentPage={activeToolPage} totalItems={visibleTools.length} pageSize={toolPageSize} maxVisiblePages={10} itemLabel="tools" onPageChange={setToolPage} />
             <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:hidden">Swipe horizontally to view all tool details.</div>
           </section>
         </>

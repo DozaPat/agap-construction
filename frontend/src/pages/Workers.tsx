@@ -3,6 +3,7 @@ import { Plus, Search, Edit, Trash2, ClipboardCheck, UsersRound } from 'lucide-r
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import Attendance from '../components/Attendance/Attendance';
+import NumberedPagination from '../components/NumberedPagination';
 
 const Workers = () => {
   const { isAdmin } = useAuth();
@@ -19,6 +20,7 @@ const Workers = () => {
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
   const [projectFilter, setProjectFilter] = useState('all'); // 'all' or project _id
+  const [workerPage, setWorkerPage] = useState(1);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -64,6 +66,12 @@ const Workers = () => {
       (worker.assignedProjects && worker.assignedProjects.some((p: any) => p._id === projectFilter));
     return matchesSearch && matchesProject;
   });
+  const workerPageSize = 10;
+  const activeWorkerPage = Math.min(workerPage, Math.max(1, Math.ceil(filteredWorkers.length / workerPageSize)));
+  const paginatedWorkers = filteredWorkers.slice(
+    (activeWorkerPage - 1) * workerPageSize,
+    activeWorkerPage * workerPageSize
+  );
 
   const openEdit = (worker: any) => {
     setSelectedWorker(worker);
@@ -189,7 +197,7 @@ const Workers = () => {
             type="text"
             placeholder="Search workers..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setWorkerPage(1); }}
             className="w-full bg-[#F8FAFC] border border-gray-200 rounded-3xl py-4 pl-14 pr-6 focus:outline-none focus:border-[#F59E0B]"
           />
         </div>
@@ -197,7 +205,7 @@ const Workers = () => {
         {/* Project Filter */}
         <select
           value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
+          onChange={(e) => { setProjectFilter(e.target.value); setWorkerPage(1); }}
           className="min-h-14 w-full rounded-3xl bg-[#1E293B] px-6 text-white focus:outline-none sm:w-auto sm:px-8"
         >
           <option value="all">All Projects</option>
@@ -208,7 +216,8 @@ const Workers = () => {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-3xl bg-white shadow-sm">
+      <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
+        <div className="overflow-x-auto">
         <table className="w-full min-w-[920px]">
           <thead>
             <tr className="border-b bg-[#1E293B]">
@@ -230,9 +239,9 @@ const Workers = () => {
                 </td>
               </tr>
             ) : (
-              filteredWorkers.map((worker: any, index: number) => (
+              paginatedWorkers.map((worker: any, index: number) => (
                 <tr key={worker._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-8 py-6 font-medium text-gray-400">{index + 1}</td>
+                  <td className="px-8 py-6 font-medium text-gray-400">{(activeWorkerPage - 1) * workerPageSize + index + 1}</td>
                   <td className="px-8 py-6 font-semibold text-[#1E293B]">{worker.name}</td>
                   <td className="px-8 py-6">
                     <span className="px-5 py-1.5 bg-[#F59E0B]/10 text-[#F59E0B] rounded-3xl text-sm font-medium">
@@ -270,6 +279,8 @@ const Workers = () => {
             )}
           </tbody>
         </table>
+        </div>
+        <NumberedPagination currentPage={activeWorkerPage} totalItems={filteredWorkers.length} pageSize={workerPageSize} maxVisiblePages={10} itemLabel="workers" onPageChange={setWorkerPage} />
       </div>
         </>
       ) : (

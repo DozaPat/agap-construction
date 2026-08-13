@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import NumberedPagination from '../components/NumberedPagination';
 
 type ProjectStatus = 'pending' | 'in-progress' | 'delayed' | 'completed' | 'cancelled';
 
@@ -166,12 +167,16 @@ const createRequestKey = () =>
   globalThis.crypto?.randomUUID?.() ??
   String(Date.now()) + '-' + Math.random().toString(36).slice(2);
 
+const paginateItems = <T,>(items: T[], page: number, pageSize: number) =>
+  items.slice((page - 1) * pageSize, page * pageSize);
+
 const ProjectsPage = () => {
   const { isAdmin } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus>('all');
+  const [projectPage, setProjectPage] = useState(1);
   const [form, setForm] = useState<ProjectForm>(emptyForm);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -185,6 +190,9 @@ const ProjectsPage = () => {
   const [deleteProject, setDeleteProject] = useState<Project | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [notice, setNotice] = useState('');
+  const [workerResourcePage, setWorkerResourcePage] = useState(1);
+  const [materialResourcePage, setMaterialResourcePage] = useState(1);
+  const [toolResourcePage, setToolResourcePage] = useState(1);
 
   const fetchProjects = async () => {
     try {
@@ -227,6 +235,16 @@ const ProjectsPage = () => {
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     return matchesSearch && matchesStatus;
   }), [projects, searchTerm, statusFilter]);
+  const projectPageSize = 5;
+  const activeProjectPage = Math.min(projectPage, Math.max(1, Math.ceil(filteredProjects.length / projectPageSize)));
+  const paginatedProjects = paginateItems(filteredProjects, activeProjectPage, projectPageSize);
+  const resourcePageSize = 5;
+  const projectWorkers = selectedProject?.resources?.workers || [];
+  const projectMaterials = selectedProject?.resources?.materials || [];
+  const projectTools = selectedProject?.resources?.tools || [];
+  const paginatedProjectWorkers = paginateItems(projectWorkers, workerResourcePage, resourcePageSize);
+  const paginatedProjectMaterials = paginateItems(projectMaterials, materialResourcePage, resourcePageSize);
+  const paginatedProjectTools = paginateItems(projectTools, toolResourcePage, resourcePageSize);
 
   const openCreate = () => {
     setEditingProject(null);
@@ -253,6 +271,9 @@ const ProjectsPage = () => {
   };
 
   const openDetails = async (project: Project) => {
+    setWorkerResourcePage(1);
+    setMaterialResourcePage(1);
+    setToolResourcePage(1);
     setSelectedProject(project);
     setDetailsOpen(true);
     setDetailsLoading(true);
@@ -411,14 +432,14 @@ const ProjectsPage = () => {
           <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => { setSearchTerm(event.target.value); setProjectPage(1); }}
             placeholder="Search by project or location..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-4 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as 'all' | ProjectStatus)}
+          onChange={(event) => { setStatusFilter(event.target.value as 'all' | ProjectStatus); setProjectPage(1); }}
           className="min-h-12 rounded-xl bg-slate-800 px-5 text-white outline-none sm:w-48"
         >
           <option value="all">All Statuses</option>
@@ -431,7 +452,7 @@ const ProjectsPage = () => {
       <div className="space-y-5">
         {filteredProjects.length === 0 ? (
           <div className="rounded-3xl bg-white p-12 text-center text-slate-500">No projects found.</div>
-        ) : filteredProjects.map((project) => {
+        ) : paginatedProjects.map((project) => {
           const style = statusStyle[project.status];
           const remaining = project.budget - (project.totalExpenses || 0);
           return (
@@ -495,6 +516,18 @@ const ProjectsPage = () => {
           );
         })}
       </div>
+      {filteredProjects.length > 0 && (
+        <div className="mt-5 overflow-hidden rounded-2xl bg-white shadow-sm">
+          <NumberedPagination
+            currentPage={activeProjectPage}
+            totalItems={filteredProjects.length}
+            pageSize={projectPageSize}
+            maxVisiblePages={3}
+            itemLabel="projects"
+            onPageChange={setProjectPage}
+          />
+        </div>
+      )}
 
       {formOpen && isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/65 p-3 sm:p-5">
@@ -610,7 +643,7 @@ const ProjectsPage = () => {
                   <section className="rounded-2xl bg-white p-5 shadow-sm">
                     <h3 className="mb-4 flex items-center gap-2 font-bold text-slate-800"><Users className="h-5 w-5 text-blue-600" />Assigned Workers <span className="ml-auto rounded-full bg-blue-100 px-2.5 py-1 text-xs text-blue-700">{selectedProject.resources?.workers?.length || 0}</span></h3>
                     <div className="space-y-3">
-                      {selectedProject.resources?.workers?.length ? selectedProject.resources.workers.map((worker) => (
+                      {projectWorkers.length ? paginatedProjectWorkers.map((worker) => (
                         <div key={worker._id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                           <p className="font-semibold text-slate-800">{worker.name}</p>
                           <p className="flex flex-wrap items-center text-sm text-slate-500">
@@ -625,12 +658,13 @@ const ProjectsPage = () => {
                         </div>
                       )) : <p className="py-6 text-center text-sm text-slate-400">No workers assigned.</p>}
                     </div>
+                    {projectWorkers.length > resourcePageSize && <NumberedPagination currentPage={workerResourcePage} totalItems={projectWorkers.length} pageSize={resourcePageSize} maxVisiblePages={10} itemLabel="workers" onPageChange={setWorkerResourcePage} />}
                   </section>
 
                   <section className="rounded-2xl bg-white p-5 shadow-sm">
                     <h3 className="mb-4 flex items-center gap-2 font-bold text-slate-800"><Boxes className="h-5 w-5 text-amber-600" />Materials Used <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-1 text-xs text-amber-700">{selectedProject.resources?.materials?.length || 0}</span></h3>
                     <div className="space-y-3">
-                      {selectedProject.resources?.materials?.length ? selectedProject.resources.materials.map((material) => (
+                      {projectMaterials.length ? paginatedProjectMaterials.map((material) => (
                         <div key={material._id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                           <p className="font-semibold text-slate-800">{material.name}</p>
                           <p className="flex flex-wrap items-center text-sm text-slate-500">
@@ -641,12 +675,13 @@ const ProjectsPage = () => {
                         </div>
                       )) : <p className="py-6 text-center text-sm text-slate-400">No materials linked.</p>}
                     </div>
+                    {projectMaterials.length > resourcePageSize && <NumberedPagination currentPage={materialResourcePage} totalItems={projectMaterials.length} pageSize={resourcePageSize} maxVisiblePages={10} itemLabel="materials" onPageChange={setMaterialResourcePage} />}
                   </section>
 
                   <section className="rounded-2xl bg-white p-5 shadow-sm">
                     <h3 className="mb-4 flex items-center gap-2 font-bold text-slate-800"><Wrench className="h-5 w-5 text-emerald-600" />Tools Used <span className="ml-auto rounded-full bg-emerald-100 px-2.5 py-1 text-xs text-emerald-700">{selectedProject.resources?.tools?.length || 0}</span></h3>
                     <div className="space-y-3">
-                      {selectedProject.resources?.tools?.length ? selectedProject.resources.tools.map((tool) => (
+                      {projectTools.length ? paginatedProjectTools.map((tool) => (
                         <div key={tool._id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                           <p className="font-semibold text-slate-800">{tool.name}</p>
                           <p className="flex flex-wrap items-center text-sm text-slate-500">
@@ -659,6 +694,7 @@ const ProjectsPage = () => {
                         </div>
                       )) : <p className="py-6 text-center text-sm text-slate-400">No tools linked.</p>}
                     </div>
+                    {projectTools.length > resourcePageSize && <NumberedPagination currentPage={toolResourcePage} totalItems={projectTools.length} pageSize={resourcePageSize} maxVisiblePages={10} itemLabel="tools" onPageChange={setToolResourcePage} />}
                   </section>
                 </div>
               </div>
