@@ -4,6 +4,8 @@ import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import Attendance from '../components/Attendance/Attendance';
 import NumberedPagination from '../components/NumberedPagination';
+import ProjectLifecycleNotice from '../components/ProjectLifecycleNotice';
+import { isProjectOperational } from '../lib/projectLifecycle';
 
 const Workers = () => {
   const { isAdmin } = useAuth();
@@ -58,6 +60,8 @@ const Workers = () => {
 
   const totalWorkers = workers.length;
   const activeWorkers = workers.filter(w => w.status === 'active').length;
+  const selectedDirectoryProject = projects.find((project) => project._id === projectFilter);
+  const canAddForCurrentScope = projectFilter === 'all' || isProjectOperational(selectedDirectoryProject);
 
   // Filter by project
   const filteredWorkers = workers.filter(worker => {
@@ -85,6 +89,9 @@ const Workers = () => {
     });
     setIsEditOpen(true);
   };
+  const selectedWorkerHasLockedAssignment = selectedWorker?.assignedProjects?.some(
+    (project: any) => !isProjectOperational(project)
+  );
 
   const handleSubmit = async (e: React.FormEvent, isEdit = false) => {
     e.preventDefault();
@@ -145,7 +152,9 @@ const Workers = () => {
         {activeTab === 'directory' && isAdmin && (
           <button 
             onClick={() => setIsCreateOpen(true)}
-            className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 sm:w-auto"
+            disabled={!canAddForCurrentScope}
+            title={canAddForCurrentScope ? 'Add worker' : 'This project is read-only'}
+            className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             Add Worker
@@ -216,6 +225,9 @@ const Workers = () => {
       </div>
 
       {/* Table */}
+      <div className="mb-5">
+        <ProjectLifecycleNotice project={selectedDirectoryProject} activity="assign workers to it" />
+      </div>
       <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
         <div className="overflow-x-auto">
         <table className="w-full min-w-[920px]">
@@ -268,7 +280,12 @@ const Workers = () => {
                         <button onClick={() => openEdit(worker)} className="text-blue-600 hover:text-blue-700">
                           <Edit className="w-5 h-5" />
                         </button>
-                        <button onClick={() => handleDeleteClick(worker._id)} className="text-red-500 hover:text-red-600">
+                        <button
+                          onClick={() => handleDeleteClick(worker._id)}
+                          disabled={worker.assignedProjects?.some((project: any) => !isProjectOperational(project))}
+                          title={worker.assignedProjects?.some((project: any) => !isProjectOperational(project)) ? 'Historical workers cannot be deleted from a locked project' : 'Delete worker'}
+                          className="text-red-500 hover:text-red-600 disabled:cursor-not-allowed disabled:text-slate-300"
+                        >
                           <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
@@ -359,13 +376,23 @@ const Workers = () => {
                   <select 
                     value={formData.assignedProject} 
                     onChange={(e) => setFormData({...formData, assignedProject: e.target.value})} 
-                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
+                    disabled={Boolean(selectedWorkerHasLockedAssignment)}
+                    className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <option value="">Not Assigned</option>
                     {projects.map((p: any) => (
-                      <option key={p._id} value={p._id}>{p.name}</option>
+                      <option
+                        key={p._id}
+                        value={p._id}
+                        disabled={!isProjectOperational(p) && p._id !== formData.assignedProject}
+                      >
+                        {p.name}{!isProjectOperational(p) ? ` (${p.status})` : ''}
+                      </option>
                     ))}
                   </select>
+                  {selectedWorkerHasLockedAssignment && (
+                    <p className="mt-2 text-xs text-slate-500">The existing assignment is preserved because the project is pending, completed, or cancelled.</p>
+                  )}
                 </div>
 
                 <div>

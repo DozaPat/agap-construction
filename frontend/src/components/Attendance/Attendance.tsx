@@ -13,10 +13,13 @@ import autoTable from 'jspdf-autotable';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import NumberedPagination from '../NumberedPagination';
+import ProjectLifecycleNotice from '../ProjectLifecycleNotice';
+import { isProjectOperational, projectLifecycleMessage, type ProjectStatus } from '../../lib/projectLifecycle';
 
 interface ProjectSummary {
   _id: string;
   name: string;
+  status: ProjectStatus;
 }
 
 type DayKey =
@@ -44,6 +47,8 @@ interface AttendanceResponse {
   weekStart: string;
   records: AttendanceRecord[];
   updatedAt: string | null;
+  readOnly: boolean;
+  statusMessage: string | null;
 }
 
 interface AttendanceProps {
@@ -106,6 +111,8 @@ const Attendance = ({ projects }: AttendanceProps) => {
   const [attendancePage, setAttendancePage] = useState(1);
 
   const selectedProject = projects.find((project) => project._id === projectId);
+  const projectOperational = isProjectOperational(selectedProject);
+  const canEditAttendance = canManage && projectOperational;
   const attendancePageSize = 10;
   const activeAttendancePage = Math.min(
     attendancePage,
@@ -181,7 +188,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
   };
 
   const toggleDay = (workerId: string, day: DayKey) => {
-    if (!canManage) return;
+    if (!canEditAttendance) return;
     setNotice('');
     setRecords((current) => current.map((record) =>
       record.worker === workerId
@@ -201,7 +208,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
     field: 'bonus' | 'overtime',
     value: string,
   ) => {
-    if (!canManage) return;
+    if (!canEditAttendance) return;
     const amount = Math.max(0, Number(value) || 0);
     setNotice('');
     setRecords((current) => current.map((record) =>
@@ -212,7 +219,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
   };
 
   const saveAttendance = async () => {
-    if (!projectId || !canManage || saving) return;
+    if (!projectId || !canEditAttendance || saving) return;
 
     setSaving(true);
     setError('');
@@ -404,6 +411,10 @@ const Attendance = ({ projects }: AttendanceProps) => {
 
       {projectId && (
         <>
+          <ProjectLifecycleNotice
+            project={selectedProject}
+            activity="assign workers or update attendance and payroll"
+          />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border-l-4 border-l-blue-600 bg-white p-5 shadow-sm">
               <Users className="mb-3 h-6 w-6 text-blue-600" />
@@ -438,7 +449,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
               <button
                 type="button"
                 onClick={() => void saveAttendance()}
-                disabled={saving || loading || records.length === 0}
+                disabled={saving || loading || records.length === 0 || !projectOperational}
                 className="flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3.5 font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving
@@ -471,6 +482,13 @@ const Attendance = ({ projects }: AttendanceProps) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
+                  {!projectOperational && selectedProject && (
+                    <tr>
+                      <td colSpan={15} className="bg-amber-50 px-6 py-4 text-center text-sm font-semibold text-amber-800">
+                        {projectLifecycleMessage(selectedProject, 'assign workers or update attendance and payroll')}
+                      </td>
+                    </tr>
+                  )}
                   {loading ? (
                     <tr>
                       <td colSpan={15} className="px-6 py-16 text-center text-slate-500">
@@ -500,7 +518,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
                             <input
                               type="checkbox"
                               checked={record.days[day.key]}
-                              disabled={!canManage}
+                              disabled={!canEditAttendance}
                               onChange={() => toggleDay(record.worker, day.key)}
                               aria-label={`${record.workerName} present on ${day.label}`}
                               className="h-5 w-5 cursor-pointer accent-amber-500 disabled:cursor-not-allowed"
@@ -519,7 +537,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
                             min="0"
                             step="0.01"
                             value={record.bonus || ''}
-                            disabled={!canManage}
+                            disabled={!canEditAttendance}
                             onChange={(event) => updateAdditionalPay(
                               record.worker,
                               'bonus',
@@ -536,7 +554,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
                             min="0"
                             step="0.01"
                             value={record.overtime || ''}
-                            disabled={!canManage}
+                            disabled={!canEditAttendance}
                             onChange={(event) => updateAdditionalPay(
                               record.worker,
                               'overtime',

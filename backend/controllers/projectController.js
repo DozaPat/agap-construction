@@ -5,6 +5,7 @@ const Worker = require('../models/Worker');
 const Material = require('../models/Material');
 const Tool = require('../models/Tool');
 const { recordActivity } = require('../services/activityService');
+const { isProjectOperational } = require('../utils/projectLifecycle');
 
 const editableFields = [
   'name',
@@ -173,8 +174,29 @@ const updateProject = async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ message: 'Project not found' });
+    const previousStatus = project.status;
     Object.assign(project, pickProjectFields(req.body));
     await project.save();
+
+    if (
+      isProjectOperational(previousStatus) &&
+      ['completed', 'cancelled'].includes(project.status)
+    ) {
+      await Tool.updateMany(
+        { project: project._id, status: 'in-use' },
+        {
+          $set: {
+            status: 'available',
+            condition: 'good',
+            assignedTo: null,
+            checkedOutAt: null,
+            expectedReturnDate: null,
+            checkedOutBy: null,
+            checkedInAt: new Date()
+          }
+        }
+      );
+    }
     await recordActivity({
       action: 'updated',
       entityType: 'project',

@@ -24,10 +24,13 @@ import axios from 'axios';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import NumberedPagination from '../components/NumberedPagination';
+import ProjectLifecycleNotice from '../components/ProjectLifecycleNotice';
+import { isProjectOperational, projectLifecycleMessage, type ProjectStatus } from '../lib/projectLifecycle';
 
 interface Project {
   _id: string;
   name: string;
+  status: ProjectStatus;
   workers?: Array<string | { _id: string }>;
 }
 
@@ -69,6 +72,7 @@ interface ToolsPanelValue {
   tools: Tool[];
   summary: ToolSummary;
   selectedProject?: Project;
+  projectOperational: boolean;
   loadingTools: boolean;
   search: string;
   categoryFilter: string;
@@ -254,6 +258,8 @@ const Tools = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const selectedProject = projects.find((project) => project._id === selectedProjectId);
+  const projectOperational = isProjectOperational(selectedProject);
+  const operationalProjects = projects.filter(isProjectOperational);
   const resetMessages = () => { setError(''); setNotice(''); };
 
   useEffect(() => {
@@ -326,8 +332,12 @@ const Tools = () => {
     key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
   }));
 
-  const openCreate = () => { resetMessages(); setEditingTool(null); setForm(emptyForm); setFormOpen(true); };
+  const openCreate = () => {
+    if (!projectOperational) return;
+    resetMessages(); setEditingTool(null); setForm(emptyForm); setFormOpen(true);
+  };
   const openEdit = (tool: Tool) => {
+    if (!projectOperational) return;
     resetMessages(); setEditingTool(tool);
     setForm({ name: tool.name, category: tool.category, quantity: String(tool.quantity), condition: tool.condition, notes: tool.notes || '' });
     setFormOpen(true);
@@ -346,6 +356,7 @@ const Tools = () => {
   };
 
   const openCheckout = (tool: Tool) => {
+    if (!projectOperational) return;
     resetMessages(); setCheckoutTool(tool); setCheckoutProjectId(selectedProjectId);
     setCheckoutWorkerId(''); setCheckoutDate(today()); setReturnDate('');
   };
@@ -391,7 +402,7 @@ const Tools = () => {
           <p className="mt-1 text-slate-600">Track project equipment, custody, and returns</p>
         </div>
         {isAdmin && (
-          <button type="button" onClick={openCreate} disabled={!selectedProjectId}
+          <button type="button" onClick={openCreate} disabled={!selectedProjectId || !projectOperational}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-6 py-3.5 font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto">
             <Plus className="h-5 w-5" /> Add Tool
           </button>
@@ -405,7 +416,7 @@ const Tools = () => {
       )}
 
       <ToolsPanel value={{
-        selectedProjectId, projects, tools, summary, selectedProject, loadingTools,
+        selectedProjectId, projects, tools, summary, selectedProject, projectOperational, loadingTools,
         search, categoryFilter, conditionFilter, statusFilter, sort, visibleTools, isAdmin,
         onProjectChange: (projectId: string) => {
           setSelectedProjectId(projectId); setSearch(''); setCategoryFilter('all');
@@ -467,7 +478,7 @@ const Tools = () => {
               <label className="mb-2 block text-sm font-semibold text-slate-700">Project</label>
               <select required value={checkoutProjectId} onChange={(event) => { setCheckoutProjectId(event.target.value); setCheckoutWorkerId(''); }} className="form-input">
                 <option value="">Choose a project...</option>
-                {projects.map((project) => <option key={project._id} value={project._id}>{project.name}</option>)}
+                {operationalProjects.map((project) => <option key={project._id} value={project._id}>{project.name}</option>)}
               </select>
             </div>
             <div>
@@ -531,7 +542,7 @@ export default Tools;
 
 const ToolsPanel = ({ value }: { value: ToolsPanelValue }) => {
   const {
-    selectedProjectId, projects, tools, summary, selectedProject, loadingTools,
+    selectedProjectId, projects, tools, summary, selectedProject, projectOperational, loadingTools,
     search, categoryFilter, conditionFilter, statusFilter, sort, visibleTools, isAdmin,
     onProjectChange, onSearchChange, onCategoryChange, onConditionChange, onStatusChange,
     onSort, onCheckout, onEdit, onCheckin, onDelete
@@ -562,6 +573,9 @@ const ToolsPanel = ({ value }: { value: ToolsPanelValue }) => {
         </div>
       ) : (
         <>
+          <div className="mb-6">
+            <ProjectLifecycleNotice project={selectedProject} activity="add, assign, edit, or delete tools" />
+          </div>
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard label="Total Tools" value={summary.total} note={`Across ${tools.length} tool records`} icon={<Wrench className="h-6 w-6" />} tone="slate" />
             <KpiCard label="Available Tools" value={summary.available} note="Ready to check out" icon={<CheckCircle2 className="h-6 w-6" />} tone="green" />
@@ -601,6 +615,13 @@ const ToolsPanel = ({ value }: { value: ToolsPanelValue }) => {
                   <th className="px-5 py-5 text-right text-sm font-semibold">Actions</th>
                 </tr></thead>
                 <tbody className="divide-y divide-slate-100">
+                  {!projectOperational && selectedProject && (
+                    <tr>
+                      <td colSpan={9} className="bg-amber-50 px-6 py-4 text-center text-sm font-semibold text-amber-800">
+                        {projectLifecycleMessage(selectedProject, 'add, assign, edit, or delete tools')}
+                      </td>
+                    </tr>
+                  )}
                   {loadingTools ? (
                     <tr><td colSpan={9} className="px-6 py-14 text-center text-slate-500">Loading {selectedProject?.name} tools...</td></tr>
                   ) : visibleTools.length === 0 ? (
@@ -615,7 +636,7 @@ const ToolsPanel = ({ value }: { value: ToolsPanelValue }) => {
                       <td className="px-5 py-5"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass(tool.status)}`}>{titleCase(tool.status)}</span></td>
                       <td className="px-5 py-5">{tool.assignedTo ? <div><p className="font-semibold text-slate-900">{tool.assignedTo.name}</p><p className="text-xs text-slate-500">{tool.assignedTo.position}</p></div> : <span className="text-slate-400">Not assigned</span>}</td>
                       <td className="whitespace-nowrap px-5 py-5 text-slate-600">{tool.status === 'in-use' ? displayDate(tool.expectedReturnDate) : '-'}</td>
-                      <td className="px-5 py-5">{isAdmin && <div className="flex items-center justify-end gap-2">
+                      <td className="px-5 py-5">{isAdmin && projectOperational && <div className="flex items-center justify-end gap-2">
                         {tool.status === 'in-use' ? (
                           <button type="button" onClick={() => onCheckin(tool)} className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-200">Check In</button>
                         ) : (

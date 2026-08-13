@@ -8,10 +8,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import ProjectLifecycleNotice from '../components/ProjectLifecycleNotice';
+import { isProjectOperational, projectLifecycleMessage, type ProjectStatus } from '../lib/projectLifecycle';
 
 interface Project {
   _id: string;
   name: string;
+  status: ProjectStatus;
   budget: number;
   recordedExpenses?: number;
   totalPayroll?: number;
@@ -234,16 +237,22 @@ const ExpensesPage = () => {
   }, [projects, projectFilter]);
 
   const filteredMaterials = materials.filter((material) =>
-    projectFilter === 'all' || material.project?._id === projectFilter
+    isProjectOperational(material.project) &&
+    (projectFilter === 'all' || material.project?._id === projectFilter)
   );
+  const selectedProject = projects.find((project) => project._id === projectFilter);
+  const selectedProjectOperational = projectFilter === 'all' || isProjectOperational(selectedProject);
+  const operationalProjects = projects.filter(isProjectOperational);
 
   const resetMessages = () => { setError(''); setNotice(''); };
   const openCreate = () => {
+    if (!selectedProjectOperational) return;
     resetMessages(); setEditingExpense(null);
     setForm({ ...emptyForm, date: localDate(new Date()), project: projectFilter === 'all' ? '' : projectFilter });
     setFormOpen(true);
   };
   const openEdit = (expense: Expense) => {
+    if (!isProjectOperational(expense.project)) return;
     resetMessages(); setEditingExpense(expense);
     setForm({
       date: expense.date.slice(0, 10), description: expense.description,
@@ -270,7 +279,7 @@ const ExpensesPage = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteExpense || submitting) return;
+    if (!deleteExpense || submitting || !isProjectOperational(deleteExpense.project)) return;
     setSubmitting(true); resetMessages();
     try {
       await api.delete(`/expenses/${deleteExpense._id}`);
@@ -384,7 +393,7 @@ const ExpensesPage = () => {
         </div>
         <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:w-auto">
           <button type="button" onClick={downloadPdf} disabled={filteredExpenses.length === 0 && filteredPayroll.length === 0} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Download className="h-5 w-5" /> Export PDF</button>
-          {isAdmin && <button type="button" onClick={openCreate} className="flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 font-semibold text-white hover:bg-amber-600"><Plus className="h-5 w-5" /> Add Expense</button>}
+          {isAdmin && <button type="button" onClick={openCreate} disabled={!selectedProjectOperational} className="flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-300"><Plus className="h-5 w-5" /> Add Expense</button>}
         </div>
       </div>
 
@@ -439,6 +448,12 @@ const ExpensesPage = () => {
         </div>}
       </section>
 
+      {projectFilter !== 'all' && (
+        <div className="mb-6">
+          <ProjectLifecycleNotice project={selectedProject} activity="add, edit, or delete expenses" />
+        </div>
+      )}
+
       <div className="mb-3 flex items-center justify-between gap-3">
         <div><h2 className="text-xl font-bold text-slate-900">Recorded Expense Ledger</h2><p className="text-sm text-slate-500">Materials, tools, rentals, transportation, fees, and other entries</p></div>
         <strong className="whitespace-nowrap text-slate-900">{peso(metrics.recordedTotal)}</strong>
@@ -452,13 +467,16 @@ const ExpensesPage = () => {
               <th className="px-6 py-5 text-right text-sm font-semibold">Amount</th><th className="px-6 py-5 text-right text-sm font-semibold">Actions</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-100">
+              {!selectedProjectOperational && selectedProject && (
+                <tr><td colSpan={6} className="bg-amber-50 px-6 py-4 text-center text-sm font-semibold text-amber-800">{projectLifecycleMessage(selectedProject, 'add, edit, or delete expenses')}</td></tr>
+              )}
               {filteredExpenses.length === 0 ? <tr><td colSpan={6} className="px-6 py-14 text-center text-slate-500">No expenses match the selected filters.</td></tr> : filteredExpenses.map((expense) => <tr key={expense._id} className="hover:bg-slate-50">
                 <td className="whitespace-nowrap px-6 py-5 text-slate-600">{dateText(expense.date)}</td>
                 <td className="px-6 py-5 font-semibold text-slate-900">{expense.description}</td>
                 <td className="px-6 py-5"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">{expense.category}</span></td>
                 <td className="px-6 py-5 text-slate-600">{expense.project?.name || 'Unknown project'}</td>
                 <td className="whitespace-nowrap px-6 py-5 text-right font-bold text-red-600">-{peso(expense.amount)}</td>
-                <td className="px-6 py-5">{isAdmin && <div className="flex justify-end gap-2">
+                <td className="px-6 py-5">{isAdmin && isProjectOperational(expense.project) && <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => openEdit(expense)} className="rounded-xl p-2 text-blue-600 hover:bg-blue-50"><Edit3 className="h-5 w-5" /></button>
                   <button type="button" onClick={() => setDeleteExpense(expense)} className="rounded-xl p-2 text-red-500 hover:bg-red-50"><Trash2 className="h-5 w-5" /></button>
                 </div>}</td>
@@ -517,6 +535,9 @@ const ExpensesPage = () => {
               <th className="px-5 py-5 text-right text-sm font-semibold">Total Payroll</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-100">
+              {!selectedProjectOperational && selectedProject && (
+                <tr><td colSpan={9} className="bg-amber-50 px-6 py-4 text-center text-sm font-semibold text-amber-800">{projectLifecycleMessage(selectedProject, 'update attendance or payroll')}</td></tr>
+              )}
               {filteredPayroll.length === 0 ? <tr><td colSpan={9} className="px-6 py-14 text-center text-slate-500">No saved payroll matches the selected filters. Save attendance in the Workers module to create payroll entries.</td></tr> : paginatedPayroll.map((record) => <tr key={record._id} className="hover:bg-slate-50">
                 <td className="whitespace-nowrap px-5 py-5 text-slate-600">Week of {dateText(record.weekStart)}</td>
                 <td className="px-5 py-5 font-semibold text-slate-900">{record.workerName}</td><td className="px-5 py-5 text-slate-600">{record.position}</td>
@@ -562,7 +583,7 @@ const ExpensesPage = () => {
             <label className="text-sm font-semibold text-slate-700">Category<select required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="form-input mt-2"><option value="">Choose a category...</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Description<input required value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="form-input mt-2" /></label>
             <label className="text-sm font-semibold text-slate-700">Amount (PHP)<input required type="number" min="0" step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} className="form-input mt-2" /></label>
-            <label className="text-sm font-semibold text-slate-700">Project<select required value={form.project} onChange={(event) => setForm({ ...form, project: event.target.value })} className="form-input mt-2"><option value="">Choose a project...</option>{projects.map((project) => <option key={project._id} value={project._id}>{project.name}</option>)}</select></label>
+            <label className="text-sm font-semibold text-slate-700">Project<select required value={form.project} onChange={(event) => setForm({ ...form, project: event.target.value })} className="form-input mt-2"><option value="">Choose a project...</option>{operationalProjects.map((project) => <option key={project._id} value={project._id}>{project.name}</option>)}</select></label>
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Notes<textarea rows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="form-input mt-2 resize-none" /></label>
           </div>
           {!editingExpense && <button type="button" onClick={() => setMaterialPicker(true)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-amber-500 py-3 font-semibold text-amber-600 hover:bg-amber-50"><WalletCards className="h-5 w-5" /> Link Material from Inventory</button>}

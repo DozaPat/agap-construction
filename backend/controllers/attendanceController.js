@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const AttendanceSheet = require('../models/AttendanceSheet');
 const Project = require('../models/Project');
 const Worker = require('../models/Worker');
+const { isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
 
 const dayKeys = [
   'monday',
@@ -27,7 +28,7 @@ const normalizeWeekStart = (value) => {
 };
 
 const getProjectWorkers = async (projectId) => {
-  const project = await Project.findById(projectId).select('name workers');
+  const project = await Project.findById(projectId).select('name status workers');
   if (!project) return null;
 
   const workers = await Worker.find({
@@ -149,22 +150,28 @@ const getAttendanceSheet = async (req, res) => {
     }).lean();
 
     const existingRecords = (sheet?.records || []).map(serializeRecord);
-    const activeExistingWorkers = await Worker.find({
-      _id: { $in: existingRecords.map((record) => record.worker) },
-      status: 'active'
-    }).select('_id').lean();
-    const activeExistingWorkerIds = new Set(
-      activeExistingWorkers.map((worker) => worker._id.toString())
-    );
-    const visibleExistingRecords = existingRecords.filter((record) =>
-      activeExistingWorkerIds.has(record.worker.toString())
-    );
+    const operational = isProjectOperational(projectWorkers.project.status);
+    let visibleExistingRecords = existingRecords;
+    if (operational) {
+      const activeExistingWorkers = await Worker.find({
+        _id: { $in: existingRecords.map((record) => record.worker) },
+        status: 'active'
+      }).select('_id').lean();
+      const activeExistingWorkerIds = new Set(
+        activeExistingWorkers.map((worker) => worker._id.toString())
+      );
+      visibleExistingRecords = existingRecords.filter((record) =>
+        activeExistingWorkerIds.has(record.worker.toString())
+      );
+    }
     const existingWorkerIds = new Set(
       visibleExistingRecords.map((record) => record.worker.toString())
     );
-    const newRecords = projectWorkers.workers
-      .filter((worker) => !existingWorkerIds.has(worker._id.toString()))
-      .map(createEmptyRecord);
+    const newRecords = operational
+      ? projectWorkers.workers
+        .filter((worker) => !existingWorkerIds.has(worker._id.toString()))
+        .map(createEmptyRecord)
+      : [];
 
     const records = [...visibleExistingRecords, ...newRecords]
       .sort((a, b) => a.workerName.localeCompare(b.workerName));
@@ -173,8 +180,13 @@ const getAttendanceSheet = async (req, res) => {
       _id: sheet?._id || null,
       project: {
         _id: projectWorkers.project._id,
-        name: projectWorkers.project.name
+        name: projectWorkers.project.name,
+        status: projectWorkers.project.status
       },
+      readOnly: !operational,
+      statusMessage: operational
+        ? null
+        : projectStatusMessage(projectWorkers.project.status, 'add workers or record attendance'),
       weekStart: weekStart.toISOString(),
       records,
       updatedAt: sheet?.updatedAt || null
@@ -200,6 +212,14 @@ const saveAttendanceSheet = async (req, res) => {
     const projectWorkers = await getProjectWorkers(projectId);
     if (!projectWorkers) {
       return res.status(404).json({ message: 'Project not found' });
+    }
+    if (!isProjectOperational(projectWorkers.project.status)) {
+      return res.status(409).json({
+        message: projectStatusMessage(
+          projectWorkers.project.status,
+          'add workers or update attendance and payroll'
+        )
+      });
     }
 
     const workersById = new Map(
@@ -274,8 +294,11 @@ const saveAttendanceSheet = async (req, res) => {
       _id: sheet._id,
       project: {
         _id: projectWorkers.project._id,
-        name: projectWorkers.project.name
+        name: projectWorkers.project.name,
+        status: projectWorkers.project.status
       },
+      readOnly: false,
+      statusMessage: null,
       weekStart: sheet.weekStart,
       records: sanitizedRecords.map(serializeRecord),
       updatedAt: sheet.updatedAt

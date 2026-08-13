@@ -5,6 +5,8 @@ import autoTable from 'jspdf-autotable';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import NumberedPagination from '../components/NumberedPagination';
+import ProjectLifecycleNotice from '../components/ProjectLifecycleNotice';
+import { isProjectOperational, projectLifecycleMessage } from '../lib/projectLifecycle';
 
 const Materials = () => {
   const { isAdmin } = useAuth();
@@ -58,6 +60,8 @@ const Materials = () => {
   }, []);
 
   const selectedProject = projects.find((project) => project._id === projectFilter);
+  const projectOperational = isProjectOperational(selectedProject);
+  const operationalProjects = projects.filter(isProjectOperational);
   const projectMaterials = materials.filter((material) => material.project?._id === projectFilter);
   const filteredMaterials = projectMaterials.filter((material) => {
     const query = searchTerm.trim().toLowerCase();
@@ -89,7 +93,7 @@ const Materials = () => {
     }).format(Number(amount || 0));
 
   const openCreate = () => {
-    if (!projectFilter) return;
+    if (!projectFilter || !projectOperational) return;
     setFormData({
       name: '',
       category: '',
@@ -117,7 +121,7 @@ const Materials = () => {
 
   const handleSubmit = async (e: React.FormEvent, isEdit = false) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!isAdmin || !projectOperational) return;
 
     try {
       const payload = {
@@ -149,7 +153,7 @@ const Materials = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteModal) return;
+    if (!deleteModal || !projectOperational) return;
     try {
       await api.delete(`/materials/${deleteModal}`);
       setSuccessModal({ title: 'Material Deleted', message: 'Material deleted successfully!' });
@@ -291,8 +295,8 @@ const Materials = () => {
         {isAdmin && (
           <button 
             onClick={openCreate}
-            disabled={!projectFilter}
-            title={projectFilter ? 'Add material' : 'Select a project first'}
+            disabled={!projectFilter || !projectOperational}
+            title={!projectFilter ? 'Select a project first' : projectOperational ? 'Add material' : 'This project is read-only'}
             className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#F59E0B] px-6 py-3.5 font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             <Plus className="w-5 h-5" />
@@ -326,6 +330,9 @@ const Materials = () => {
 
       {projectFilter ? (
         <>
+          <div className="mb-6">
+            <ProjectLifecycleNotice project={selectedProject} activity="add, edit, or delete materials" />
+          </div>
           <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="min-w-0 overflow-hidden rounded-3xl border border-l-4 border-slate-100 border-l-blue-600 bg-white p-6 shadow-sm">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
@@ -390,6 +397,13 @@ const Materials = () => {
             </tr>
           </thead>
           <tbody className="divide-y">
+            {!projectOperational && selectedProject && (
+              <tr>
+                <td colSpan={9} className="bg-amber-50 px-8 py-4 text-center text-sm font-semibold text-amber-800">
+                  {projectLifecycleMessage(selectedProject, 'add, edit, or delete materials')}
+                </td>
+              </tr>
+            )}
             {filteredMaterials.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-8 py-12 text-center text-gray-400">
@@ -422,7 +436,7 @@ const Materials = () => {
                   </td>
                   <td className="px-8 py-6 text-gray-600">{item.supplier || '-'}</td>
                   <td className="px-8 py-6 text-right">
-                    {isAdmin && (
+                    {isAdmin && projectOperational && (
                       <div className="flex items-center justify-end gap-4">
                         <button onClick={() => openEdit(item)} className="text-blue-600 hover:text-blue-700">
                           <Edit className="w-5 h-5" />
@@ -570,7 +584,7 @@ const Materials = () => {
                     className="w-full px-5 py-4 bg-[#F8FAFC] border border-gray-200 rounded-3xl focus:outline-none focus:border-[#F59E0B]"
                   >
                     <option value="">Select Project</option>
-                    {projects.map((p: any) => (
+                    {operationalProjects.map((p: any) => (
                       <option key={p._id} value={p._id}>{p.name}</option>
                     ))}
                   </select>

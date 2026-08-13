@@ -1,5 +1,6 @@
 const Material = require('../models/Material');
 const { recordActivity } = require('../services/activityService');
+const { getProjectLifecycle, isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
 
 const serializeMaterial = (materialDocument) => {
   const material = materialDocument.toObject();
@@ -37,7 +38,7 @@ const getMaterials = async (req, res) => {
   try {
     const filter = req.query.project ? { project: req.query.project } : {};
     const materials = await Material.find(filter)
-      .populate('project', 'name')
+      .populate('project', 'name status')
       .sort({ createdAt: -1 });
     res.json(materials.map(serializeMaterial));
   } catch (error) {
@@ -49,7 +50,7 @@ const getMaterials = async (req, res) => {
 const getMaterial = async (req, res) => {
   try {
     const material = await Material.findById(req.params.id)
-      .populate('project', 'name');
+      .populate('project', 'name status');
     if (!material) return res.status(404).json({ message: 'Material not found' });
     res.json(serializeMaterial(material));
   } catch (error) {
@@ -60,6 +61,9 @@ const getMaterial = async (req, res) => {
 // Create new material
 const createMaterial = async (req, res) => {
   try {
+    const lifecycle = await getProjectLifecycle(req.body.project);
+    if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
+    if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'add materials to it') });
     const material = await Material.create(pickMaterialFields(req.body));
     await recordActivity({
       action: 'created',
@@ -77,12 +81,18 @@ const createMaterial = async (req, res) => {
 // Update material
 const updateMaterial = async (req, res) => {
   try {
-    const material = await Material.findByIdAndUpdate(
-      req.params.id,
-      pickMaterialFields(req.body),
-      { new: true, runValidators: true }
-    );
+    const material = await Material.findById(req.params.id).populate('project', 'name status');
     if (!material) return res.status(404).json({ message: 'Material not found' });
+    if (!isProjectOperational(material.project.status)) {
+      return res.status(409).json({ message: projectStatusMessage(material.project.status, 'edit its materials') });
+    }
+    if (req.body.project && String(req.body.project) !== String(material.project._id)) {
+      const lifecycle = await getProjectLifecycle(req.body.project);
+      if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
+      if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'move materials to it') });
+    }
+    Object.assign(material, pickMaterialFields(req.body));
+    await material.save();
     await recordActivity({
       action: 'updated',
       entityType: 'material',
@@ -99,8 +109,12 @@ const updateMaterial = async (req, res) => {
 // Delete material
 const deleteMaterial = async (req, res) => {
   try {
-    const material = await Material.findByIdAndDelete(req.params.id);
+    const material = await Material.findById(req.params.id).populate('project', 'name status');
     if (!material) return res.status(404).json({ message: 'Material not found' });
+    if (!isProjectOperational(material.project.status)) {
+      return res.status(409).json({ message: projectStatusMessage(material.project.status, 'delete its materials') });
+    }
+    await material.deleteOne();
     await recordActivity({
       action: 'deleted',
       entityType: 'material',

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Expense = require('../models/Expense');
 const Project = require('../models/Project');
 const { recordActivity } = require('../services/activityService');
+const { getProjectLifecycle, isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
 
 const categories = [
   'Labor', 'Material', 'Tool', 'Equipment Rental', 'Transportation',
@@ -13,7 +14,7 @@ const pickFields = (body) => editableFields.reduce((result, field) => {
   return result;
 }, {});
 const populateExpense = (query) => query
-  .populate('project', 'name budget')
+  .populate('project', 'name budget status')
   .populate('paidBy', 'name');
 
 const getExpenses = async (req, res) => {
@@ -60,9 +61,9 @@ const createExpense = async (req, res) => {
   try {
     const data = pickFields(req.body);
     if (!data.project) return res.status(400).json({ message: 'Project is required' });
-    if (!await Project.exists({ _id: data.project })) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
+    const lifecycle = await getProjectLifecycle(data.project);
+    if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
+    if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'record expenses for it') });
     const expense = await Expense.create({ ...data, paidBy: req.user._id });
     await recordActivity({
       action: 'created', entityType: 'expense', entityId: expense._id,
@@ -78,6 +79,16 @@ const updateExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
     if (!expense) return res.status(404).json({ message: 'Expense not found' });
+    const currentProject = await Project.findById(expense.project).select('status');
+    if (!currentProject) return res.status(404).json({ message: 'Project not found' });
+    if (!isProjectOperational(currentProject.status)) {
+      return res.status(409).json({ message: projectStatusMessage(currentProject.status, 'edit its expenses') });
+    }
+    if (req.body.project && String(req.body.project) !== String(expense.project)) {
+      const lifecycle = await getProjectLifecycle(req.body.project);
+      if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
+      if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'move expenses to it') });
+    }
     Object.assign(expense, pickFields(req.body));
     await expense.save();
     await recordActivity({
@@ -92,8 +103,12 @@ const updateExpense = async (req, res) => {
 
 const deleteExpense = async (req, res) => {
   try {
-    const expense = await Expense.findByIdAndDelete(req.params.id);
+    const expense = await Expense.findById(req.params.id).populate('project', 'status');
     if (!expense) return res.status(404).json({ message: 'Expense not found' });
+    if (!isProjectOperational(expense.project.status)) {
+      return res.status(409).json({ message: projectStatusMessage(expense.project.status, 'delete its expenses') });
+    }
+    await expense.deleteOne();
     await recordActivity({
       action: 'deleted', entityType: 'expense', entityId: expense._id,
       entityName: expense.description, actor: req.user?._id

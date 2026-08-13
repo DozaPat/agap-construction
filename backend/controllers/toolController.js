@@ -3,9 +3,10 @@ const Tool = require('../models/Tool');
 const Worker = require('../models/Worker');
 const Project = require('../models/Project');
 const { recordActivity } = require('../services/activityService');
+const { getProjectLifecycle, isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
 
 const toolPopulation = [
-  { path: 'project', select: 'name' },
+  { path: 'project', select: 'name status' },
   { path: 'assignedTo', select: 'name position status' }
 ];
 
@@ -60,9 +61,9 @@ const createTool = async (req, res) => {
   try {
     const { name, category, quantity, condition = 'good', project, notes } = req.body;
     if (!project) return res.status(400).json({ message: 'Select a project first' });
-
-    const projectExists = await Project.exists({ _id: project });
-    if (!projectExists) return res.status(404).json({ message: 'Project not found' });
+    const lifecycle = await getProjectLifecycle(project);
+    if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
+    if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'add tools to it') });
 
     const tool = await Tool.create({
       name,
@@ -95,6 +96,11 @@ const updateTool = async (req, res) => {
   try {
     const tool = await Tool.findById(req.params.id);
     if (!tool) return res.status(404).json({ message: 'Tool not found' });
+    const currentProject = await Project.findById(tool.project).select('status');
+    if (!currentProject) return res.status(404).json({ message: 'Project not found' });
+    if (!isProjectOperational(currentProject.status)) {
+      return res.status(409).json({ message: projectStatusMessage(currentProject.status, 'edit its tools') });
+    }
 
     const previousProject = String(tool.project || '');
     const previousCondition = tool.condition;
@@ -105,6 +111,11 @@ const updateTool = async (req, res) => {
     });
 
     if (!tool.project) return res.status(400).json({ message: 'A project is required' });
+    if (req.body.project && String(req.body.project) !== previousProject) {
+      const lifecycle = await getProjectLifecycle(req.body.project);
+      if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
+      if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'move tools to it') });
+    }
     if (tool.status === 'in-use') {
       if (req.body.project && String(req.body.project) !== previousProject) {
         return res.status(400).json({ message: 'Check the tool in before changing its project' });
@@ -153,10 +164,13 @@ const checkOutTool = async (req, res) => {
     }
 
     const [project, worker] = await Promise.all([
-      Project.findById(projectId).select('name workers'),
+      Project.findById(projectId).select('name status workers'),
       Worker.findOne({ _id: workerId, status: 'active' }).select('name assignedProjects')
     ]);
     if (!project) return res.status(404).json({ message: 'Project not found' });
+    if (!isProjectOperational(project.status)) {
+      return res.status(409).json({ message: projectStatusMessage(project.status, 'check out tools for it') });
+    }
     if (!worker) return res.status(404).json({ message: 'Active worker not found' });
 
     const workerIsAssigned =
@@ -245,6 +259,11 @@ const deleteTool = async (req, res) => {
   try {
     const tool = await Tool.findById(req.params.id);
     if (!tool) return res.status(404).json({ message: 'Tool not found' });
+    const project = await Project.findById(tool.project).select('status');
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+    if (!isProjectOperational(project.status)) {
+      return res.status(409).json({ message: projectStatusMessage(project.status, 'delete its tools') });
+    }
     if (tool.status === 'in-use') {
       return res.status(409).json({ message: 'Check the tool in before deleting it' });
     }
