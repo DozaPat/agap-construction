@@ -59,7 +59,7 @@ const Login = () => {
         password,
       });
       login(data);
-      navigate('/dashboard', { replace: true });
+      navigate(data.mustChangePassword ? '/change-password' : '/dashboard', { replace: true });
     } catch (requestError: unknown) {
       setError(
         axios.isAxiosError(requestError)
@@ -76,7 +76,7 @@ const Login = () => {
   };
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={user.mustChangePassword ? '/change-password' : '/dashboard'} replace />;
   }
 
   return (

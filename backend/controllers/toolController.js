@@ -4,6 +4,7 @@ const Worker = require('../models/Worker');
 const Project = require('../models/Project');
 const { recordActivity } = require('../services/activityService');
 const { getProjectLifecycle, isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
+const { projectScopeFilter, requireProjectAccess } = require('../utils/accessControl');
 
 const toolPopulation = [
   { path: 'project', select: 'name status' },
@@ -30,11 +31,12 @@ const requireAdmin = (req, res) => {
 
 const getTools = async (req, res) => {
   try {
-    const filter = {};
+    const filter = await projectScopeFilter(req.user);
     if (req.query.project) {
       if (!mongoose.isValidObjectId(req.query.project)) {
         return res.status(400).json({ message: 'Invalid project' });
       }
+      if (!(await requireProjectAccess(req, res, req.query.project))) return;
       filter.project = req.query.project;
     }
 
@@ -49,6 +51,7 @@ const getTool = async (req, res) => {
   try {
     const tool = await populateTool(Tool.findById(req.params.id));
     if (!tool) return res.status(404).json({ message: 'Tool not found' });
+    if (!(await requireProjectAccess(req, res, tool.project?._id))) return;
     res.json(serializeTool(tool));
   } catch (error) {
     res.status(500).json({ message: error.message });

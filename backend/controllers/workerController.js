@@ -2,6 +2,25 @@ const Worker = require('../models/Worker');
 const Project = require('../models/Project');
 const { recordActivity } = require('../services/activityService');
 const { isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
+const { getAccessibleProjectIds } = require('../utils/accessControl');
+
+const workerScope = async (user) => {
+  const projectIds = await getAccessibleProjectIds(user);
+  if (projectIds === null) return { projectIds: null, workerFilter: {} };
+  const listedWorkerIds = await Project.find({ _id: { $in: projectIds } }).distinct('workers');
+  return {
+    projectIds,
+    workerFilter: {
+      $or: [
+        { assignedProjects: { $in: projectIds } },
+        { _id: { $in: listedWorkerIds } }
+      ]
+    }
+  };
+};
+
+const assignmentsWithinScope = (assignedProjects, projectIds) =>
+  projectIds === null || (assignedProjects || []).every((id) => projectIds.includes(String(id)));
 
 const validateAssignments = async (assignedProjects = [], existingProjectIds = []) => {
   const projectIds = [...new Set(assignedProjects.map(String))];
@@ -32,7 +51,8 @@ const validateAssignments = async (assignedProjects = [], existingProjectIds = [
 // Get all workers
 const getWorkers = async (req, res) => {
   try {
-    const workers = await Worker.find()
+    const { workerFilter } = await workerScope(req.user);
+    const workers = await Worker.find(workerFilter)
       .populate('assignedProjects', 'name location status');
     res.json(workers);
   } catch (error) {
@@ -43,7 +63,8 @@ const getWorkers = async (req, res) => {
 // Get single worker
 const getWorker = async (req, res) => {
   try {
-    const worker = await Worker.findById(req.params.id)
+    const { workerFilter } = await workerScope(req.user);
+    const worker = await Worker.findOne({ _id: req.params.id, ...workerFilter })
       .populate('assignedProjects', 'name status');
     if (!worker) return res.status(404).json({ message: 'Worker not found' });
     res.json(worker);
@@ -55,6 +76,10 @@ const getWorker = async (req, res) => {
 // Create new worker
 const createWorker = async (req, res) => {
   try {
+    const { projectIds } = await workerScope(req.user);
+    if (!assignmentsWithinScope(req.body.assignedProjects, projectIds)) {
+      return res.status(403).json({ message: 'Workers can only be assigned to your projects' });
+    }
     const assignmentError = await validateAssignments(req.body.assignedProjects);
     if (assignmentError) return res.status(409).json({ message: assignmentError });
     const worker = await Worker.create(req.body);
@@ -74,9 +99,13 @@ const createWorker = async (req, res) => {
 // Update worker
 const updateWorker = async (req, res) => {
   try {
-    const worker = await Worker.findById(req.params.id);
+    const { projectIds, workerFilter } = await workerScope(req.user);
+    const worker = await Worker.findOne({ _id: req.params.id, ...workerFilter });
     if (!worker) return res.status(404).json({ message: 'Worker not found' });
     if (req.body.assignedProjects) {
+      if (!assignmentsWithinScope(req.body.assignedProjects, projectIds)) {
+        return res.status(403).json({ message: 'Workers can only be assigned to your projects' });
+      }
       const assignmentError = await validateAssignments(
         req.body.assignedProjects,
         worker.assignedProjects
@@ -101,7 +130,8 @@ const updateWorker = async (req, res) => {
 // Delete worker
 const deleteWorker = async (req, res) => {
   try {
-    const worker = await Worker.findById(req.params.id);
+    const { workerFilter } = await workerScope(req.user);
+    const worker = await Worker.findOne({ _id: req.params.id, ...workerFilter });
     if (!worker) return res.status(404).json({ message: 'Worker not found' });
     const lockedProject = await Project.findOne({
       status: { $in: ['pending', 'completed', 'cancelled'] },

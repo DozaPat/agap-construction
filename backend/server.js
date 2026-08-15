@@ -41,6 +41,9 @@ app.use(cookieParser());
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
+const userRoutes = require('./routes/user');
+app.use('/api/users', userRoutes);
+
 const projectRoutes = require('./routes/project');
 app.use('/api/projects', projectRoutes);
 

@@ -6,6 +6,7 @@ const Tool = require('../models/Tool');
 const Expense = require('../models/Expense');
 const AttendanceSheet = require('../models/AttendanceSheet');
 const Activity = require('../models/Activity');
+const { getAccessibleProjectIds } = require('../utils/accessControl');
 
 const dayKeys = [
   'monday', 'tuesday', 'wednesday', 'thursday',
@@ -123,7 +124,10 @@ const getDashboardSummary = async (req, res) => {
       return res.status(400).json({ message: 'The start date cannot be after the end date' });
     }
 
-    const allProjects = await Project.find().sort({ createdAt: -1 }).lean();
+    const accessibleIds = await getAccessibleProjectIds(req.user);
+    const allProjects = await Project.find(
+      accessibleIds === null ? {} : { _id: { $in: accessibleIds } }
+    ).sort({ createdAt: -1 }).lean();
     if (selectedProjectId && !allProjects.some((project) => String(project._id) === selectedProjectId)) {
       return res.status(404).json({ message: 'Project not found' });
     }
@@ -132,10 +136,12 @@ const getDashboardSummary = async (req, res) => {
       : allProjects;
     const projectIds = projects.map((project) => project._id);
     const selectedWorkerIds = projects.flatMap((project) => project.workers || []);
-    const projectFilter = selectedProjectId ? { project: selectedProjectId } : {};
+    const projectFilter = selectedProjectId
+      ? { project: selectedProjectId }
+      : { project: { $in: projectIds } };
     const workerFilter = selectedProjectId
       ? { $or: [{ assignedProjects: selectedProjectId }, { _id: { $in: selectedWorkerIds } }] }
-      : {};
+      : { $or: [{ assignedProjects: { $in: projectIds } }, { _id: { $in: selectedWorkerIds } }] };
 
     const [expenses, attendanceSheets, workers, materials, tools, activities] = await Promise.all([
       Expense.find(projectFilter).lean(),
@@ -146,7 +152,8 @@ const getDashboardSummary = async (req, res) => {
         .populate('project', 'name')
         .populate('assignedTo', 'name position')
         .lean(),
-      Activity.find().populate('actor', 'name role').sort({ createdAt: -1 }).limit(20).lean()
+      Activity.find(req.user.role === 'admin' ? {} : { actor: req.user._id })
+        .populate('actor', 'name role').sort({ createdAt: -1 }).limit(20).lean()
     ]);
 
     const periodExpenses = expenses.filter((expense) => inRange(expense.date, from, to));

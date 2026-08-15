@@ -33,6 +33,36 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     trim: true
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'locked'],
+    default: 'active',
+    index: true
+  },
+  assignedProjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  }],
+  mustChangePassword: {
+    type: Boolean,
+    default: false
+  },
+  failedLoginAttempts: {
+    type: Number,
+    default: 0
+  },
+  lockUntil: Date,
+  lastLoginAt: Date,
+  passwordChangedAt: Date,
+  tokenVersion: {
+    type: Number,
+    default: 0
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   }
 }, { 
   timestamps: true 
@@ -42,6 +72,8 @@ const userSchema = new mongoose.Schema({
 userSchema.pre('save', async function() {
   if (!this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 12);
+  this.passwordChangedAt = new Date();
+  if (!this.isNew) this.tokenVersion = Number(this.tokenVersion || 0) + 1;
 });
 
 // Compare password method

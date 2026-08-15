@@ -10,6 +10,7 @@ import {
   Users,
   Wrench,
   X,
+  UserCog,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +23,7 @@ const menuItems = [
   { path: '/tools', label: 'Tools', icon: Wrench },
   { path: '/expenses', label: 'Expenses', icon: Receipt },
   { path: '/reports', label: 'Generate Reports', icon: FileText },
+  { path: '/users', label: 'Users & Access', icon: UserCog, adminOnly: true },
 ];
 
 interface SidebarProps {
@@ -99,7 +101,7 @@ const Sidebar = ({
 
       <nav className={`min-h-0 flex-1 overflow-y-auto overscroll-contain py-3 ${collapsed ? 'lg:px-2' : 'px-3'}`}>
         <div className="space-y-1">
-          {menuItems.map((item) => {
+          {menuItems.filter((item) => !item.adminOnly || user?.role === 'admin').map((item) => {
             const Icon = item.icon;
             const isActive =
               location.pathname === item.path ||

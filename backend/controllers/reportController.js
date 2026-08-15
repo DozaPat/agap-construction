@@ -5,6 +5,7 @@ const Material = require('../models/Material');
 const Tool = require('../models/Tool');
 const Expense = require('../models/Expense');
 const AttendanceSheet = require('../models/AttendanceSheet');
+const { getAccessibleProjectIds } = require('../utils/accessControl');
 
 const dayKeys = [
   'monday', 'tuesday', 'wednesday', 'thursday',
@@ -105,7 +106,13 @@ const getDetailedReport = async (req, res) => {
       return res.status(400).json({ message: 'Enter a valid report date range' });
     }
 
-    const projectQuery = projectId ? { _id: projectId } : {};
+    const accessibleIds = await getAccessibleProjectIds(req.user);
+    if (projectId && accessibleIds !== null && !accessibleIds.includes(String(projectId))) {
+      return res.status(403).json({ message: 'You are not assigned to this project' });
+    }
+    const projectQuery = projectId
+      ? { _id: projectId }
+      : accessibleIds === null ? {} : { _id: { $in: accessibleIds } };
     const projects = await Project.find(projectQuery)
       .populate('manager', 'name role')
       .populate('workers', 'name position phone dailySalary status')
@@ -118,12 +125,12 @@ const getDetailedReport = async (req, res) => {
     const listedWorkerIds = projects.flatMap((project) => (project.workers || []).map((worker) => worker._id));
 
     const [workers, materials, tools, expenses, attendanceSheets] = await Promise.all([
-      Worker.find(projectId ? {
+      Worker.find({
         $or: [
           { assignedProjects: { $in: projectIds } },
           { _id: { $in: listedWorkerIds } }
         ]
-      } : {})
+      })
         .populate('assignedProjects', 'name status')
         .sort({ name: 1 })
         .lean(),
@@ -131,7 +138,7 @@ const getDetailedReport = async (req, res) => {
         .populate('project', 'name status')
         .sort({ project: 1, name: 1 })
         .lean(),
-      Tool.find(projectId ? { project: { $in: projectIds } } : {})
+      Tool.find({ project: { $in: projectIds } })
         .populate('project', 'name status')
         .populate('assignedTo', 'name position')
         .sort({ project: 1, name: 1 })

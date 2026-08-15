@@ -3,6 +3,7 @@ const AttendanceSheet = require('../models/AttendanceSheet');
 const Project = require('../models/Project');
 const Worker = require('../models/Worker');
 const { isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
+const { projectScopeFilter, requireProjectAccess } = require('../utils/accessControl');
 
 const dayKeys = [
   'monday',
@@ -90,11 +91,12 @@ const calculatePayroll = (record) => {
 // GET /api/attendance/payroll?project=:projectId&from=YYYY-MM-DD&to=YYYY-MM-DD
 const getPayrollLedger = async (req, res) => {
   try {
-    const filter = {};
+    const filter = await projectScopeFilter(req.user);
     if (req.query.project) {
       if (!mongoose.isValidObjectId(req.query.project)) {
         return res.status(400).json({ message: 'Invalid project' });
       }
+      if (!(await requireProjectAccess(req, res, req.query.project))) return;
       filter.project = req.query.project;
     }
     if (req.query.from || req.query.to) {
@@ -133,6 +135,7 @@ const getAttendanceSheet = async (req, res) => {
     if (!projectId) {
       return res.status(400).json({ message: 'Please select a project' });
     }
+    if (!(await requireProjectAccess(req, res, projectId))) return;
 
     const weekStart = normalizeWeekStart(requestedWeek);
     if (!weekStart) {
@@ -203,6 +206,7 @@ const saveAttendanceSheet = async (req, res) => {
     if (!projectId) {
       return res.status(400).json({ message: 'Please select a project' });
     }
+    if (!(await requireProjectAccess(req, res, projectId))) return;
 
     const weekStart = normalizeWeekStart(requestedWeek);
     if (!weekStart) {

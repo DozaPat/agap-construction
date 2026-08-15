@@ -8,7 +8,7 @@ const activitySchema = new mongoose.Schema({
   },
   entityType: {
     type: String,
-    enum: ['project', 'worker', 'material', 'tool', 'expense'],
+    enum: ['project', 'worker', 'material', 'tool', 'expense', 'user'],
     required: true
   },
   entityId: {

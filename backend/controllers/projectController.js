@@ -6,6 +6,7 @@ const Material = require('../models/Material');
 const Tool = require('../models/Tool');
 const { recordActivity } = require('../services/activityService');
 const { isProjectOperational } = require('../utils/projectLifecycle');
+const { getAccessibleProjectIds, requireProjectAccess } = require('../utils/accessControl');
 
 const editableFields = [
   'name',
@@ -94,7 +95,10 @@ const addExpenseTotals = async (projects) => {
 // @route   GET /api/projects
 const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find()
+    const accessibleIds = await getAccessibleProjectIds(req.user);
+    const projects = await Project.find(
+      accessibleIds === null ? {} : { _id: { $in: accessibleIds } }
+    )
       .populate('manager', 'name role')
       .populate('workers', 'name position');
     res.json(await addExpenseTotals(projects));
@@ -107,6 +111,7 @@ const getProjects = async (req, res) => {
 // @route   GET /api/projects/:id
 const getProject = async (req, res) => {
   try {
+    if (!(await requireProjectAccess(req, res, req.params.id))) return;
     const project = await Project.findById(req.params.id)
       .populate('manager', 'name role')
       .populate('workers', 'name position');
@@ -172,6 +177,7 @@ const createProject = async (req, res) => {
 // @route   PUT /api/projects/:id
 const updateProject = async (req, res) => {
   try {
+    if (!(await requireProjectAccess(req, res, req.params.id))) return;
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ message: 'Project not found' });
     const previousStatus = project.status;
@@ -214,6 +220,7 @@ const updateProject = async (req, res) => {
 // @route   DELETE /api/projects/:id
 const deleteProject = async (req, res) => {
   try {
+    if (!(await requireProjectAccess(req, res, req.params.id))) return;
     const project = await Project.findByIdAndDelete(req.params.id);
     if (!project) return res.status(404).json({ message: 'Project not found' });
     await recordActivity({

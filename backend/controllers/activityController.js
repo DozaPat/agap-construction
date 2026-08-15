@@ -7,7 +7,9 @@ const getRecentActivities = async (req, res) => {
       ? Math.min(Math.max(requestedLimit, 1), 50)
       : 10;
 
-    const activities = await Activity.find()
+    const activities = await Activity.find(
+      req.user.role === 'admin' ? {} : { actor: req.user._id }
+    )
       .populate('actor', 'name role')
       .sort({ createdAt: -1 })
       .limit(limit);

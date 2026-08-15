@@ -11,7 +11,8 @@ const entityLabels = {
   worker: 'worker',
   material: 'material',
   tool: 'tool',
-  expense: 'expense'
+  expense: 'expense',
+  user: 'user account'
 };
 
 const recordActivity = async ({

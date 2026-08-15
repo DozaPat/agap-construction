@@ -9,10 +9,20 @@ import Tools from './pages/Tools';
 import Expenses from './pages/ExpensesPage';
 import Reports from './pages/Reports';
 import Layout from './components/Layout/Layout';
+import UsersManagement from './pages/UsersManagement';
+import ChangePassword from './pages/ChangePassword';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+const ProtectedRoute = ({ children, allowPasswordChange = false }: { children: React.ReactNode; allowPasswordChange?: boolean }) => {
+  const { user, isCheckingSession } = useAuth();
+  if (isCheckingSession) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-500">Checking your session...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.mustChangePassword && !allowPasswordChange) return <Navigate to="/change-password" replace />;
+  return <>{children}</>;
+};
+
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAdmin } = useAuth();
+  return isAdmin ? <>{children}</> : <Navigate to="/dashboard" replace />;
 };
 
 const App = () => {
@@ -22,6 +32,7 @@ const App = () => {
         <Routes>
           {/* Public Route */}
           <Route path="/login" element={<Login />} />
+          <Route path="/change-password" element={<ProtectedRoute allowPasswordChange><ChangePassword /></ProtectedRoute>} />
 
           {/* Protected Routes */}
           <Route
@@ -40,6 +51,7 @@ const App = () => {
             <Route path="tools" element={<Tools />} />
             <Route path="expenses" element={<Expenses />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="users" element={<AdminRoute><UsersManagement /></AdminRoute>} />
           </Route>
 
           {/* Catch all */}

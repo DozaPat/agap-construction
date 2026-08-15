@@ -3,6 +3,7 @@ const Expense = require('../models/Expense');
 const Project = require('../models/Project');
 const { recordActivity } = require('../services/activityService');
 const { getProjectLifecycle, isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
+const { projectScopeFilter, requireProjectAccess } = require('../utils/accessControl');
 
 const categories = [
   'Labor', 'Material', 'Tool', 'Equipment Rental', 'Transportation',
@@ -19,11 +20,12 @@ const populateExpense = (query) => query
 
 const getExpenses = async (req, res) => {
   try {
-    const filter = {};
+    const filter = await projectScopeFilter(req.user);
     if (req.query.project) {
       if (!mongoose.isValidObjectId(req.query.project)) {
         return res.status(400).json({ message: 'Invalid project' });
       }
+      if (!(await requireProjectAccess(req, res, req.query.project))) return;
       filter.project = req.query.project;
     }
     if (req.query.category) {
@@ -51,6 +53,7 @@ const getExpense = async (req, res) => {
   try {
     const expense = await populateExpense(Expense.findById(req.params.id));
     if (!expense) return res.status(404).json({ message: 'Expense not found' });
+    if (!(await requireProjectAccess(req, res, expense.project?._id))) return;
     res.json(expense);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -61,6 +64,7 @@ const createExpense = async (req, res) => {
   try {
     const data = pickFields(req.body);
     if (!data.project) return res.status(400).json({ message: 'Project is required' });
+    if (!(await requireProjectAccess(req, res, data.project))) return;
     const lifecycle = await getProjectLifecycle(data.project);
     if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
     if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'record expenses for it') });
@@ -79,12 +83,14 @@ const updateExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
     if (!expense) return res.status(404).json({ message: 'Expense not found' });
+    if (!(await requireProjectAccess(req, res, expense.project))) return;
     const currentProject = await Project.findById(expense.project).select('status');
     if (!currentProject) return res.status(404).json({ message: 'Project not found' });
     if (!isProjectOperational(currentProject.status)) {
       return res.status(409).json({ message: projectStatusMessage(currentProject.status, 'edit its expenses') });
     }
     if (req.body.project && String(req.body.project) !== String(expense.project)) {
+      if (!(await requireProjectAccess(req, res, req.body.project))) return;
       const lifecycle = await getProjectLifecycle(req.body.project);
       if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
       if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'move expenses to it') });
@@ -105,6 +111,7 @@ const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id).populate('project', 'status');
     if (!expense) return res.status(404).json({ message: 'Expense not found' });
+    if (!(await requireProjectAccess(req, res, expense.project?._id))) return;
     if (!isProjectOperational(expense.project.status)) {
       return res.status(409).json({ message: projectStatusMessage(expense.project.status, 'delete its expenses') });
     }

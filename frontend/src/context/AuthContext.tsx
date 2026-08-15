@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import api from '../lib/api';
 
 export interface User {
   _id: string;
@@ -6,7 +7,10 @@ export interface User {
   name: string;
   email?: string;
   role: 'admin' | 'manager';
-  token: string;
+  status?: 'active' | 'inactive' | 'locked';
+  assignedProjects?: Array<string | { _id: string; name?: string }>;
+  mustChangePassword?: boolean;
+  token?: string;
 }
 
 interface AuthContextType {
@@ -15,6 +19,7 @@ interface AuthContextType {
   logout: () => void;
   isAdmin: boolean;
   isManager: boolean;
+  isCheckingSession: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +34,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return null;
     }
   });
+  const [isCheckingSession, setIsCheckingSession] = useState(Boolean(user));
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    api.get<User>('/auth/me')
+      .then(({ data }) => {
+        if (!active) return;
+        const verified = { ...data, token: user.token };
+        setUser(verified);
+        localStorage.setItem('user', JSON.stringify(verified));
+      })
+      .catch(() => {
+        if (!active) return;
+        setUser(null);
+        localStorage.removeItem('user');
+      })
+      .finally(() => {
+        if (active) setIsCheckingSession(false);
+      });
+    return () => { active = false; };
+    // Validate only when the provider is mounted; login updates are already trusted API responses.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = (userData: User) => {
     setUser(userData);
@@ -36,6 +65,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    const authorization = user?.token ? { Authorization: `Bearer ${user.token}` } : undefined;
+    void api.post('/auth/logout', {}, { headers: authorization }).catch(() => undefined);
     setUser(null);
     localStorage.removeItem('user');
   };
@@ -44,7 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isManager = user?.role === 'manager';
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin, isManager }}>
+    <AuthContext.Provider value={{ user, login, logout, isAdmin, isManager, isCheckingSession }}>
       {children}
     </AuthContext.Provider>
   );
