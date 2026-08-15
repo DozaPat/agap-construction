@@ -229,12 +229,11 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-sm">
               <label className="flex cursor-pointer items-center gap-2 rounded-lg outline-none focus-within:ring-2 focus-within:ring-orange-200">
                 <input type="checkbox" className="h-4 w-4 accent-[#F59E0B]" />
                 <span className="text-gray-600">Remember me</span>
               </label>
-              <a href="#" className="rounded-lg text-[#F59E0B] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-orange-200">Forgot password?</a>
             </div>
 
             <button

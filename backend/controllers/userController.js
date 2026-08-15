@@ -1,6 +1,10 @@
 const crypto = require('crypto');
 const User = require('../models/User');
 const Project = require('../models/Project');
+const Expense = require('../models/Expense');
+const Tool = require('../models/Tool');
+const AttendanceSheet = require('../models/AttendanceSheet');
+const Activity = require('../models/Activity');
 const { recordActivity } = require('../services/activityService');
 
 const safeFields = 'username name email phone role status assignedProjects mustChangePassword failedLoginAttempts lockUntil lastLoginAt createdAt updatedAt';
@@ -19,6 +23,35 @@ const ensureAdminRemains = async (target, updates = {}) => {
   return (await User.countDocuments({ role: 'admin', status: { $ne: 'inactive' } })) > 1;
 };
 
+const getDeletionBlocker = async (user, currentUserId) => {
+  if (String(user._id) === String(currentUserId)) {
+    return 'You cannot delete the account you are currently using.';
+  }
+  if (user.lastLoginAt) {
+    return 'This account has signed in before and must be deactivated to preserve its history.';
+  }
+  if (
+    user.role === 'admin' &&
+    (await User.countDocuments({ role: 'admin', status: { $ne: 'inactive' } })) <= 1
+  ) {
+    return 'The last active administrator cannot be deleted.';
+  }
+
+  const [project, expense, tool, attendance, activity, createdUser] = await Promise.all([
+    Project.exists({ manager: user._id }),
+    Expense.exists({ paidBy: user._id }),
+    Tool.exists({ checkedOutBy: user._id }),
+    AttendanceSheet.exists({ $or: [{ createdBy: user._id }, { updatedBy: user._id }] }),
+    Activity.exists({ actor: user._id }),
+    User.exists({ createdBy: user._id })
+  ]);
+
+  if (project || expense || tool || attendance || activity || createdUser) {
+    return 'This account has system history and cannot be permanently deleted. Deactivate it instead.';
+  }
+  return null;
+};
+
 const getUsers = async (req, res) => {
   try {
     const query = {};
@@ -34,7 +67,15 @@ const getUsers = async (req, res) => {
     }
     const users = await User.find(query).select(safeFields)
       .populate('assignedProjects', 'name status').sort({ createdAt: -1 });
-    res.json(users);
+    const results = await Promise.all(users.map(async (user) => {
+      const deleteBlockedReason = await getDeletionBlocker(user, req.user._id);
+      return {
+        ...user.toObject(),
+        canDelete: !deleteBlockedReason,
+        deleteBlockedReason
+      };
+    }));
+    res.json(results);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -125,7 +166,7 @@ const resetPassword = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    const temporaryPassword = req.body.temporaryPassword || `Agap-${crypto.randomBytes(5).toString('base64url')}!`;
+    const temporaryPassword = req.body?.temporaryPassword || `Agap-${crypto.randomBytes(5).toString('base64url')}!`;
     if (temporaryPassword.length < 8) return res.status(400).json({ message: 'Temporary password must contain at least 8 characters' });
     user.password = temporaryPassword;
     user.mustChangePassword = true;
@@ -139,4 +180,26 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { getUsers, createUser, updateUser, unlockUser, resetPassword };
+const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const blocker = await getDeletionBlocker(user, req.user._id);
+    if (blocker) return res.status(409).json({ message: blocker });
+
+    await user.deleteOne();
+    await recordActivity({
+      action: 'deleted',
+      entityType: 'user',
+      entityId: user._id,
+      entityName: user.name,
+      actor: req.user._id
+    });
+    res.json({ message: 'Unused user account deleted permanently' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getUsers, createUser, updateUser, unlockUser, resetPassword, deleteUser };
