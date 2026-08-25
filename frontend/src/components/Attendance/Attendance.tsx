@@ -8,8 +8,6 @@ import {
   Users,
   WalletCards,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import NumberedPagination from '../NumberedPagination';
@@ -244,9 +242,13 @@ const Attendance = ({ projects }: AttendanceProps) => {
     }
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!selectedProject || records.length === 0) return;
 
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -321,7 +323,7 @@ const Attendance = ({ projects }: AttendanceProps) => {
       },
     });
 
-    const tableEnd = (doc as jsPDF & {
+    const tableEnd = (doc as typeof doc & {
       lastAutoTable?: { finalY: number };
     }).lastAutoTable?.finalY || 55;
     let summaryY = tableEnd + 9;

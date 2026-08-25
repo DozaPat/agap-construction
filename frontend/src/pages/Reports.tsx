@@ -12,7 +12,6 @@ import {
   X,
 } from 'lucide-react';
 import api from '../lib/api';
-import { buildDetailedReportPdf, loadReportLogo, reportFileName } from '../lib/reportPdf';
 import type { DetailedReport, ReportType } from '../reportTypes';
 
 interface ProjectOption {
@@ -121,6 +120,7 @@ const Reports = () => {
           to: period.to,
         },
       });
+      const { buildDetailedReportPdf, loadReportLogo, reportFileName } = await import('../lib/reportPdf');
       const logoDataUrl = await loadReportLogo();
       const document = buildDetailedReportPdf(data, logoDataUrl);
       document.save(reportFileName(data));

@@ -14,7 +14,7 @@ import { useAuth, type User } from '../context/AuthContext';
 
 const slides = [
   { src: '/login-slides/agap-project-03.jpg', alt: 'AGAP interior staircase and feature lighting' },
-  { src: '/loginbg1.png', alt: 'Original AGAP construction site background' },
+  { src: '/loginbg1.webp', alt: 'Original AGAP construction site background' },
   { src: '/login-slides/agap-project-01.jpg', alt: 'Modern AGAP residential construction project' },
   { src: '/login-slides/agap-project-02.jpg', alt: 'Completed contemporary AGAP residence' },
   { src: '/login-slides/agap-project-04.jpg', alt: 'AGAP finished living room interior' },
@@ -75,6 +75,9 @@ const Login = () => {
     setCapsLockActive(event.getModifierState('CapsLock'));
   };
 
+  const previousSlide = (activeSlide - 1 + slides.length) % slides.length;
+  const nextSlide = (activeSlide + 1) % slides.length;
+
   if (user) {
     return <Navigate to={user.mustChangePassword ? '/change-password' : '/dashboard'} replace />;
   }
@@ -83,16 +86,23 @@ const Login = () => {
     <div className="flex min-h-screen bg-white">
       <section className="relative hidden w-1/2 overflow-hidden bg-slate-950 lg:block" aria-label="AGAP project showcase">
         <div className="absolute inset-0" aria-live="off">
-          {slides.map((slide, index) => (
-            <img
-              key={slide.src}
-              src={slide.src}
-              alt={slide.alt}
-              className={`absolute inset-0 h-full w-full object-cover brightness-[0.72] saturate-[0.9] transition-all duration-1000 ease-in-out motion-reduce:transition-none ${
-                activeSlide === index ? 'scale-100 opacity-100' : 'scale-[1.04] opacity-0'
-              }`}
-            />
-          ))}
+          {slides.map((slide, index) => {
+            const shouldLoad = index === activeSlide || index === previousSlide || index === nextSlide;
+            if (!shouldLoad) return null;
+            return (
+              <img
+                key={slide.src}
+                src={slide.src}
+                alt={slide.alt}
+                loading={index === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                fetchPriority={index === 0 ? 'high' : 'auto'}
+                className={`absolute inset-0 h-full w-full object-cover brightness-[0.72] saturate-[0.9] transition-all duration-1000 ease-in-out motion-reduce:transition-none ${
+                  activeSlide === index ? 'scale-100 opacity-100' : 'scale-[1.04] opacity-0'
+                }`}
+              />
+            );
+          })}
         </div>
 
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/65 via-slate-950/45 to-slate-950/85" />

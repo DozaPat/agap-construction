@@ -4,8 +4,6 @@ import {
   Banknote, CalendarDays, Download, Edit3, PieChart, Plus, Search, Trash2,
   TrendingDown, TrendingUp, UsersRound, WalletCards, X
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import ProjectLifecycleNotice from '../components/ProjectLifecycleNotice';
@@ -297,8 +295,12 @@ const ExpensesPage = () => {
     setMaterialPicker(false);
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (filteredExpenses.length === 0 && filteredPayroll.length === 0) return;
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const scope = projectFilter === 'all' ? 'All Projects' : projects.find((project) => project._id === projectFilter)?.name || 'Project';
@@ -343,7 +345,7 @@ const ExpensesPage = () => {
           3: { cellWidth: 70 }, 4: { cellWidth: 55, halign: 'right' }
         }
       });
-      nextY = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || nextY) + 9;
+      nextY = ((doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || nextY) + 9;
     }
 
     if (filteredPayroll.length > 0) {
@@ -368,7 +370,7 @@ const ExpensesPage = () => {
           7: { cellWidth: 27, halign: 'right' }, 8: { cellWidth: 35, halign: 'right' }
         }
       });
-      nextY = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || nextY) + 9;
+      nextY = ((doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || nextY) + 9;
     }
 
     if (nextY > 190) { doc.addPage('a4', 'landscape'); nextY = 18; }
