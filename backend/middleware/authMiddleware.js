@@ -10,9 +10,10 @@ const clearAuthCookie = (res) => res.clearCookie('token', {
 const protect = async (req, res, next) => {
   let token;
 
-  if (req.cookies.token) {
-    token = req.cookies.token;
-  } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  // Sessions are scoped to a browser tab, so persistent auth cookies are no
+  // longer accepted. Clear any cookie left by an older deployment.
+  if (req.cookies.token) clearAuthCookie(res);
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
 

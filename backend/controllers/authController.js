@@ -15,13 +15,6 @@ const generateToken = (user) => {
   });
 };
 
-const cookieOptions = () => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000
-});
-
 const publicUser = (user, token) => ({
   _id: user._id,
   username: user.username,
@@ -36,7 +29,9 @@ const publicUser = (user, token) => ({
 
 const issueSession = (res, user) => {
   const token = generateToken(user);
-  res.cookie('token', token, cookieOptions());
+  // Clear cookies created by older deployments. The frontend keeps this token
+  // in sessionStorage so closing the tab ends the local session.
+  clearAuthCookie(res);
   return publicUser(user, token);
 };
 

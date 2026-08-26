@@ -11,7 +11,8 @@ const baseURL = configuredApiUrl
 
 const api = axios.create({
   baseURL,
-  withCredentials: true,
+  // Authentication is carried by the per-tab bearer token, not a persistent cookie.
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
   }
@@ -19,11 +20,16 @@ const api = axios.create({
 
 // Add token to every request if it exists
 api.interceptors.request.use((config) => {
-  const user = localStorage.getItem('user');
+  const user = sessionStorage.getItem('user');
   if (user) {
-    const token = JSON.parse(user).token;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const token = JSON.parse(user).token;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {
+      sessionStorage.removeItem('user');
+      localStorage.removeItem('user');
     }
   }
   return config;
@@ -36,7 +42,8 @@ api.interceptors.response.use(
     const message = String(error.response?.data?.message || '').toLowerCase();
     const sessionEnded = status === 401 || status === 423 ||
       (status === 403 && (message.includes('account is inactive') || message.includes('account no longer exists')));
-    if (sessionEnded && localStorage.getItem('user')) {
+    if (sessionEnded && sessionStorage.getItem('user')) {
+      sessionStorage.removeItem('user');
       localStorage.removeItem('user');
       if (window.location.pathname !== '/login') window.location.assign('/login');
     }

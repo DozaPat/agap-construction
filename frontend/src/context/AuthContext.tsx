@@ -23,17 +23,28 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AUTH_STORAGE_KEY = 'user';
+
+const clearStoredAuth = () => {
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  // Remove sessions created by older versions of the application.
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+};
+
+const readStoredAuth = (): User | null => {
+  // Authentication is intentionally scoped to this browser tab.
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  try {
+    const savedUser = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    return savedUser ? JSON.parse(savedUser) : null;
+  } catch {
+    clearStoredAuth();
+    return null;
+  }
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const savedUser = localStorage.getItem('user');
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-      localStorage.removeItem('user');
-      return null;
-    }
-  });
+  const [user, setUser] = useState<User | null>(readStoredAuth);
   const [isCheckingSession, setIsCheckingSession] = useState(Boolean(user));
 
   useEffect(() => {
@@ -44,12 +55,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!active) return;
         const verified = { ...data, token: user.token };
         setUser(verified);
-        localStorage.setItem('user', JSON.stringify(verified));
+        sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(verified));
       })
       .catch(() => {
         if (!active) return;
         setUser(null);
-        localStorage.removeItem('user');
+        clearStoredAuth();
       })
       .finally(() => {
         if (active) setIsCheckingSession(false);
@@ -61,14 +72,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (userData: User) => {
     setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
   };
 
   const logout = () => {
     const authorization = user?.token ? { Authorization: `Bearer ${user.token}` } : undefined;
     void api.post('/auth/logout', {}, { headers: authorization }).catch(() => undefined);
     setUser(null);
-    localStorage.removeItem('user');
+    clearStoredAuth();
   };
 
   const isAdmin = user?.role === 'admin';

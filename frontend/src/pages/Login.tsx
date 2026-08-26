@@ -239,12 +239,9 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="flex items-center text-sm">
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg outline-none focus-within:ring-2 focus-within:ring-orange-200">
-                <input type="checkbox" className="h-4 w-4 accent-[#F59E0B]" />
-                <span className="text-gray-600">Remember me</span>
-              </label>
-            </div>
+            <p className="text-sm text-slate-500">
+              For your security, your session ends when this browser tab is closed.
+            </p>
 
             <button
               type="submit"
