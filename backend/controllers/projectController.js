@@ -19,6 +19,7 @@ const editableFields = [
   'progress',
   'workers'
 ];
+const progressStatuses = ['pending', 'in-progress', 'completed', 'delayed', 'cancelled'];
 
 const pickProjectFields = (body) => editableFields.reduce((result, field) => {
   if (Object.prototype.hasOwnProperty.call(body, field)) {
@@ -216,6 +217,61 @@ const updateProject = async (req, res) => {
   }
 };
 
+// @desc    Update project progress and status (manager-safe action)
+// @route   PATCH /api/projects/:id/progress
+const updateProjectProgress = async (req, res) => {
+  try {
+    if (!(await requireProjectAccess(req, res, req.params.id))) return;
+
+    const progress = Number(req.body.progress);
+    const status = req.body.status;
+    if (!Number.isFinite(progress) || progress < 0 || progress > 100) {
+      return res.status(400).json({ message: 'Progress must be between 0 and 100' });
+    }
+    if (!progressStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Select a valid project status' });
+    }
+
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+    const previousStatus = project.status;
+    project.progress = progress;
+    project.status = status;
+    await project.save();
+
+    if (
+      isProjectOperational(previousStatus) &&
+      ['completed', 'cancelled'].includes(project.status)
+    ) {
+      await Tool.updateMany(
+        { project: project._id, status: 'in-use' },
+        {
+          $set: {
+            status: 'available',
+            condition: 'good',
+            assignedTo: null,
+            checkedOutAt: null,
+            expectedReturnDate: null,
+            checkedOutBy: null,
+            checkedInAt: new Date()
+          }
+        }
+      );
+    }
+
+    await recordActivity({
+      action: 'updated',
+      entityType: 'project',
+      entityId: project._id,
+      entityName: project.name,
+      actor: req.user?._id
+    });
+    res.json(project);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 // @desc    Delete project
 // @route   DELETE /api/projects/:id
 const deleteProject = async (req, res) => {
@@ -241,5 +297,6 @@ module.exports = {
   getProject,
   createProject,
   updateProject,
+  updateProjectProgress,
   deleteProject
 };

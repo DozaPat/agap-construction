@@ -5,17 +5,25 @@ const {
   getProject,
   createProject,
   updateProject,
+  updateProjectProgress,
   deleteProject
 } = require('../controllers/projectController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
   .get(protect, getProjects)
-  .post(protect, createProject);
+  .post(protect, authorize('admin'), createProject);
 
 router.route('/:id')
   .get(protect, getProject)
-  .put(protect, updateProject)
-  .delete(protect, deleteProject);
+  .put(protect, authorize('admin'), updateProject)
+  .delete(protect, authorize('admin'), deleteProject);
+
+router.patch(
+  '/:id/progress',
+  protect,
+  authorize('admin', 'manager'),
+  updateProjectProgress
+);
 
 module.exports = router;
