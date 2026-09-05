@@ -47,6 +47,61 @@ const attendanceRecordSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+const attendanceEntrySchema = new mongoose.Schema({
+  worker: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker',
+    required: true
+  },
+  workerName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  position: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  dailySalary: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  workDate: {
+    type: Date,
+    required: true
+  },
+  timeIn: {
+    type: Date,
+    required: true
+  },
+  timeOut: {
+    type: Date,
+    default: null
+  },
+  notes: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  correctionReason: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+}, { timestamps: true });
+
 const attendanceSheetSchema = new mongoose.Schema({
   project: {
     type: mongoose.Schema.Types.ObjectId,
@@ -59,6 +114,10 @@ const attendanceSheetSchema = new mongoose.Schema({
   },
   records: {
     type: [attendanceRecordSchema],
+    default: []
+  },
+  entries: {
+    type: [attendanceEntrySchema],
     default: []
   },
   createdBy: {
