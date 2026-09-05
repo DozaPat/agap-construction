@@ -30,6 +30,7 @@ import {
   ShieldAlert,
   TrendingUp,
   Users,
+  UserCog,
   WalletCards,
   Wrench,
   type LucideIcon,
@@ -39,7 +40,7 @@ import api from '../lib/api';
 
 type DatePreset = 'this-week' | 'this-month' | 'last-30' | 'all' | 'custom';
 type Health = 'healthy' | 'attention' | 'at-risk' | 'completed' | 'cancelled';
-type ActivityEntity = 'project' | 'worker' | 'material' | 'tool' | 'expense';
+type ActivityEntity = 'project' | 'worker' | 'material' | 'tool' | 'expense' | 'user';
 type ActivityAction = 'created' | 'updated' | 'deleted';
 
 interface DashboardResponse {
@@ -210,6 +211,7 @@ const activityIcons: Record<ActivityEntity, LucideIcon> = {
   material: PackageSearch,
   tool: Wrench,
   expense: Receipt,
+  user: UserCog,
 };
 const activityRoutes: Record<ActivityEntity, string> = {
   project: '/projects',
@@ -217,6 +219,7 @@ const activityRoutes: Record<ActivityEntity, string> = {
   material: '/materials',
   tool: '/tools',
   expense: '/expenses',
+  user: '/users',
 };
 const healthStyles: Record<Health, string> = {
   healthy: 'bg-emerald-100 text-emerald-700',
@@ -545,7 +548,7 @@ const Dashboard = () => {
             <Panel title="Recent Activity" subtitle="Latest changes across every module" action={
               <div className="flex gap-2">
                 <select aria-label="Filter activity by module" value={activityModule} onChange={(event) => setActivityModule(event.target.value as 'all' | ActivityEntity)} className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700 outline-none">
-                  <option value="all">All Modules</option><option value="project">Projects</option><option value="worker">Workers</option><option value="material">Materials</option><option value="tool">Tools</option><option value="expense">Expenses</option>
+                  <option value="all">All Modules</option><option value="project">Projects</option><option value="worker">Workers</option><option value="material">Materials</option><option value="tool">Tools</option><option value="expense">Expenses</option><option value="user">Users</option>
                 </select>
                 <select aria-label="Filter activity by action" value={activityAction} onChange={(event) => setActivityAction(event.target.value as 'all' | ActivityAction)} className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700 outline-none">
                   <option value="all">All Actions</option><option value="created">Created</option><option value="updated">Updated</option><option value="deleted">Deleted</option>

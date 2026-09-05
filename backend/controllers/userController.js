@@ -156,6 +156,14 @@ const unlockUser = async (req, res) => {
     user.lockUntil = undefined;
     user.tokenVersion = Number(user.tokenVersion || 0) + 1;
     await user.save({ validateBeforeSave: false });
+    await recordActivity({
+      action: 'updated',
+      entityType: 'user',
+      entityId: user._id,
+      entityName: user.name,
+      actor: req.user._id,
+      message: `Unlocked user account "${user.name}"`
+    });
     res.json(await User.findById(user._id).select(safeFields).populate('assignedProjects', 'name status'));
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -174,6 +182,14 @@ const resetPassword = async (req, res) => {
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
     await user.save();
+    await recordActivity({
+      action: 'updated',
+      entityType: 'user',
+      entityId: user._id,
+      entityName: user.name,
+      actor: req.user._id,
+      message: `Issued a temporary password for user account "${user.name}"`
+    });
     res.json({ message: 'Password reset successfully', temporaryPassword });
   } catch (error) {
     res.status(400).json({ message: error.message });

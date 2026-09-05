@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const Worker = require('../models/Worker');
 const { isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
 const { projectScopeFilter, requireProjectAccess } = require('../utils/accessControl');
+const { recordActivity } = require('../services/activityService');
 
 const dayKeys = [
   'monday',
@@ -329,7 +330,16 @@ const recordTimeIn = async (req, res) => {
     setPayrollPresence(sheet, worker, workDate, true);
     sheet.updatedBy = req.user._id;
     await sheet.save();
-    res.status(201).json(serializeEntry(sheet.entries[sheet.entries.length - 1]));
+    const entry = sheet.entries[sheet.entries.length - 1];
+    await recordActivity({
+      action: 'updated',
+      entityType: 'worker',
+      entityId: worker._id,
+      entityName: worker.name,
+      actor: req.user._id,
+      message: `Recorded time-in for worker "${worker.name}"`
+    });
+    res.status(201).json(serializeEntry(entry));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -348,6 +358,14 @@ const recordTimeOut = async (req, res) => {
     result.entry.updatedBy = req.user._id;
     result.sheet.updatedBy = req.user._id;
     await result.sheet.save();
+    await recordActivity({
+      action: 'updated',
+      entityType: 'worker',
+      entityId: result.entry.worker,
+      entityName: result.entry.workerName,
+      actor: req.user._id,
+      message: `Recorded time-out for worker "${result.entry.workerName}"`
+    });
     res.json(serializeEntry(result.entry));
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -390,6 +408,14 @@ const correctAttendanceEntry = async (req, res) => {
     setPayrollPresence(result.sheet, worker, result.entry.workDate, true);
     result.sheet.updatedBy = req.user._id;
     await result.sheet.save();
+    await recordActivity({
+      action: 'updated',
+      entityType: 'worker',
+      entityId: result.entry.worker,
+      entityName: result.entry.workerName,
+      actor: req.user._id,
+      message: `Corrected attendance for worker "${result.entry.workerName}"`
+    });
     res.json(serializeEntry(result.entry));
   } catch (error) {
     res.status(400).json({ message: error.message });

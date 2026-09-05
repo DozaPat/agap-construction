@@ -7,15 +7,15 @@ const {
   updateWorker,
   deleteWorker
 } = require('../controllers/workerController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
   .get(protect, getWorkers)
-  .post(protect, createWorker);
+  .post(protect, authorize('admin'), createWorker);
 
 router.route('/:id')
   .get(protect, getWorker)
-  .put(protect, updateWorker)
-  .delete(protect, deleteWorker);
+  .put(protect, authorize('admin'), updateWorker)
+  .delete(protect, authorize('admin'), deleteWorker);
 
 module.exports = router;

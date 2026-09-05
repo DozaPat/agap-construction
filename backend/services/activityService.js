@@ -20,7 +20,8 @@ const recordActivity = async ({
   entityType,
   entityId,
   entityName,
-  actor
+  actor,
+  message
 }) => {
   try {
     const verb = actionLabels[action] || action;
@@ -32,7 +33,7 @@ const recordActivity = async ({
       entityId,
       entityName,
       actor,
-      message: `${verb} ${subject} "${entityName}"`
+      message: message || `${verb} ${subject} "${entityName}"`
     });
   } catch (error) {
     console.error('Activity logging failed:', error.message);
