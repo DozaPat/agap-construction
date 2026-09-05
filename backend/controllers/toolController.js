@@ -3,6 +3,7 @@ const Tool = require('../models/Tool');
 const Worker = require('../models/Worker');
 const Project = require('../models/Project');
 const { recordActivity } = require('../services/activityService');
+const { notifyToolAlert } = require('../services/notificationService');
 const { getProjectLifecycle, isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
 const { projectScopeFilter, requireProjectAccess } = require('../utils/accessControl');
 
@@ -86,6 +87,16 @@ const createTool = async (req, res) => {
       actor: req.user?._id
     });
 
+    if (tool.condition !== 'good') {
+      await notifyToolAlert({
+        tool,
+        projectId: lifecycle.project._id,
+        projectName: lifecycle.project.name,
+        reason: `condition changed to ${tool.condition}`,
+        eventKey: `condition:${tool.condition}:${tool.updatedAt.getTime()}`
+      });
+    }
+
     const populated = await populateTool(Tool.findById(tool._id));
     res.status(201).json(serializeTool(populated));
   } catch (error) {
@@ -138,6 +149,17 @@ const updateTool = async (req, res) => {
       entityName: tool.name,
       actor: req.user?._id
     });
+
+    if (tool.condition !== 'good' && tool.condition !== previousCondition) {
+      const project = await Project.findById(tool.project).select('name');
+      await notifyToolAlert({
+        tool,
+        projectId: tool.project,
+        projectName: project?.name,
+        reason: `condition changed to ${tool.condition}`,
+        eventKey: `condition:${tool.condition}:${tool.updatedAt.getTime()}`
+      });
+    }
 
     const populated = await populateTool(Tool.findById(tool._id));
     res.json(serializeTool(populated));
@@ -248,6 +270,17 @@ const checkInTool = async (req, res) => {
       entityName: `${tool.name} checked in`,
       actor: req.user._id
     });
+
+    if (condition === 'needs repair') {
+      const project = await Project.findById(tool.project).select('name');
+      await notifyToolAlert({
+        tool,
+        projectId: tool.project,
+        projectName: project?.name,
+        reason: 'returned needing repair',
+        eventKey: `repair:${tool.updatedAt.getTime()}`
+      });
+    }
 
     const populated = await populateTool(Tool.findById(tool._id));
     res.json(serializeTool(populated));

@@ -5,6 +5,7 @@ const Worker = require('../models/Worker');
 const Material = require('../models/Material');
 const Tool = require('../models/Tool');
 const { recordActivity } = require('../services/activityService');
+const { notifyProjectUpdate } = require('../services/notificationService');
 const { isProjectOperational } = require('../utils/projectLifecycle');
 const { getAccessibleProjectIds, requireProjectAccess } = require('../utils/accessControl');
 
@@ -162,6 +163,12 @@ const createProject = async (req, res) => {
       entityName: project.name,
       actor: req.user?._id
     });
+    await notifyProjectUpdate({
+      project,
+      title: 'New project created',
+      message: `${project.name} was added to AGAP.`,
+      eventKey: `created:${project.createdAt.getTime()}`
+    });
     res.status(201).json(project);
   } catch (error) {
     if (error.code === 11000 && error.keyPattern?.requestKey) {
@@ -210,6 +217,12 @@ const updateProject = async (req, res) => {
       entityId: project._id,
       entityName: project.name,
       actor: req.user?._id
+    });
+    await notifyProjectUpdate({
+      project,
+      title: 'Project updated',
+      message: `${project.name} is now ${project.progress}% complete with status ${project.status}.`,
+      eventKey: `updated:${project.updatedAt.getTime()}`
     });
     res.json(project);
   } catch (error) {
@@ -266,6 +279,12 @@ const updateProjectProgress = async (req, res) => {
       entityName: project.name,
       actor: req.user?._id
     });
+    await notifyProjectUpdate({
+      project,
+      title: 'Project progress updated',
+      message: `${project.name} is now ${project.progress}% complete with status ${project.status}.`,
+      eventKey: `progress:${project.updatedAt.getTime()}`
+    });
     res.json(project);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -285,6 +304,12 @@ const deleteProject = async (req, res) => {
       entityId: project._id,
       entityName: project.name,
       actor: req.user?._id
+    });
+    await notifyProjectUpdate({
+      project,
+      title: 'Project removed',
+      message: `${project.name} was removed from AGAP.`,
+      eventKey: `deleted:${Date.now()}`
     });
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {

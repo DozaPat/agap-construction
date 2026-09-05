@@ -1,5 +1,6 @@
 const Material = require('../models/Material');
 const { recordActivity } = require('../services/activityService');
+const { notifyLowStock } = require('../services/notificationService');
 const { getProjectLifecycle, isProjectOperational, projectStatusMessage } = require('../utils/projectLifecycle');
 const { projectScopeFilter, requireProjectAccess } = require('../utils/accessControl');
 
@@ -80,6 +81,13 @@ const createMaterial = async (req, res) => {
       entityName: material.name,
       actor: req.user?._id
     });
+    if (Number(material.quantity) <= Number(material.reorderPoint ?? 20)) {
+      await notifyLowStock({
+        material,
+        projectId: lifecycle.project._id,
+        projectName: lifecycle.project.name
+      });
+    }
     res.status(201).json(serializeMaterial(material));
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -101,6 +109,7 @@ const updateMaterial = async (req, res) => {
       if (!lifecycle.project) return res.status(404).json({ message: lifecycle.message });
       if (lifecycle.message) return res.status(409).json({ message: projectStatusMessage(lifecycle.project.status, 'move materials to it') });
     }
+    const wasLowStock = Number(material.quantity) <= Number(material.reorderPoint ?? 20);
     Object.assign(material, pickMaterialFields(req.body));
     await material.save();
     await recordActivity({
@@ -110,6 +119,15 @@ const updateMaterial = async (req, res) => {
       entityName: material.name,
       actor: req.user?._id
     });
+    const isLowStock = Number(material.quantity) <= Number(material.reorderPoint ?? 20);
+    if (isLowStock && (!wasLowStock || req.body.quantity !== undefined)) {
+      await material.populate('project', 'name status');
+      await notifyLowStock({
+        material,
+        projectId: material.project._id,
+        projectName: material.project.name
+      });
+    }
     res.json(serializeMaterial(material));
   } catch (error) {
     res.status(400).json({ message: error.message });

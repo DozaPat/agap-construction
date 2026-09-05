@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
+const { startNotificationScheduler } = require('./services/notificationScheduler');
 
 const app = express();
 
@@ -71,6 +72,9 @@ app.use('/api/dashboard', dashboardRoutes);
 const reportRoutes = require('./routes/report');
 app.use('/api/reports', reportRoutes);
 
+const notificationRoutes = require('./routes/notification');
+app.use('/api/notifications', notificationRoutes);
+
 // Test route
 app.get('/', (req, res) => {
   res.send('✅ AGAP Construction Backend is running successfully!');
@@ -90,6 +94,7 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
+    startNotificationScheduler();
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
     process.exitCode = 1;
