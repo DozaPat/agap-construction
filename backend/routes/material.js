@@ -7,15 +7,15 @@ const {
   updateMaterial,
   deleteMaterial
 } = require('../controllers/materialController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
   .get(protect, getMaterials)
-  .post(protect, createMaterial);
+  .post(protect, authorize('admin'), createMaterial);
 
 router.route('/:id')
   .get(protect, getMaterial)
-  .put(protect, updateMaterial)
-  .delete(protect, deleteMaterial);
+  .put(protect, authorize('admin'), updateMaterial)
+  .delete(protect, authorize('admin'), deleteMaterial);
 
 module.exports = router;

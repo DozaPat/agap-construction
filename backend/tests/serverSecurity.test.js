@@ -1,7 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const jwt = require('jsonwebtoken');
 
 const { app } = require('../server');
+const User = require('../models/User');
 
 let server;
 let baseUrl;
@@ -42,4 +44,44 @@ test('oversized JSON bodies are rejected before reaching a controller', async ()
 
   assert.equal(response.status, 413);
   assert.deepEqual(await response.json(), { message: 'Request body is too large' });
+});
+
+test('manager tokens cannot call material mutation routes', async () => {
+  const previousSecret = process.env.JWT_SECRET;
+  const originalFindById = User.findById;
+  process.env.JWT_SECRET = 'phase-9-material-route-secret';
+  User.findById = () => ({
+    select: async () => ({
+      _id: 'manager-1',
+      role: 'manager',
+      status: 'active',
+      tokenVersion: 0,
+      mustChangePassword: false
+    })
+  });
+  const token = jwt.sign(
+    { id: 'manager-1', tokenVersion: 0 },
+    process.env.JWT_SECRET
+  );
+
+  try {
+    const response = await fetch(`${baseUrl}/api/materials`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({})
+    });
+
+    assert.equal(response.status, 403);
+    assert.match((await response.json()).message, /permission/i);
+  } finally {
+    User.findById = originalFindById;
+    if (previousSecret === undefined) {
+      delete process.env.JWT_SECRET;
+    } else {
+      process.env.JWT_SECRET = previousSecret;
+    }
+  }
 });

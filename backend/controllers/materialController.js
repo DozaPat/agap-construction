@@ -88,6 +88,7 @@ const createMaterial = async (req, res) => {
         projectName: lifecycle.project.name
       });
     }
+    await material.populate('project', 'name status');
     res.status(201).json(serializeMaterial(material));
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -128,6 +129,7 @@ const updateMaterial = async (req, res) => {
         projectName: material.project.name
       });
     }
+    await material.populate('project', 'name status');
     res.json(serializeMaterial(material));
   } catch (error) {
     res.status(400).json({ message: error.message });
