@@ -85,3 +85,43 @@ test('manager tokens cannot call material mutation routes', async () => {
     }
   }
 });
+
+test('manager tokens cannot call tool mutation routes', async () => {
+  const previousSecret = process.env.JWT_SECRET;
+  const originalFindById = User.findById;
+  process.env.JWT_SECRET = 'phase-10-tool-route-secret';
+  User.findById = () => ({
+    select: async () => ({
+      _id: 'manager-1',
+      role: 'manager',
+      status: 'active',
+      tokenVersion: 0,
+      mustChangePassword: false
+    })
+  });
+  const token = jwt.sign(
+    { id: 'manager-1', tokenVersion: 0 },
+    process.env.JWT_SECRET
+  );
+
+  try {
+    const response = await fetch(`${baseUrl}/api/tools`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({})
+    });
+
+    assert.equal(response.status, 403);
+    assert.match((await response.json()).message, /administrator/i);
+  } finally {
+    User.findById = originalFindById;
+    if (previousSecret === undefined) {
+      delete process.env.JWT_SECRET;
+    } else {
+      process.env.JWT_SECRET = previousSecret;
+    }
+  }
+});
